@@ -182,21 +182,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
             if (response.ok) {
               const taskData = await response.json();
+              console.log(`✅ ClickUp task ${taskId} fetched successfully`);
               
               // Look for "Live URL" custom field
               if (taskData.custom_fields && Array.isArray(taskData.custom_fields)) {
+                console.log(`   Found ${taskData.custom_fields.length} custom field(s) in task`);
                 const liveUrlField = taskData.custom_fields.find(
                   (field: any) => field.name === "Live URL" && field.value
                 );
                 
                 if (liveUrlField && liveUrlField.value) {
                   liveUrl = liveUrlField.value;
-                  console.log(`Found Live URL for task ${taskId}: ${liveUrl}`);
+                  console.log(`   ✅ Live URL extracted: ${liveUrl}`);
+                } else {
+                  console.log(`   ⚠️  No "Live URL" custom field found with a value`);
                 }
+              } else {
+                console.log(`   ⚠️  Task has no custom_fields array`);
               }
             } else {
               fetchError = response.statusText;
-              console.warn(`Could not fetch ClickUp task ${taskId}: ${response.statusText}`);
+              console.warn(`❌ Could not fetch ClickUp task ${taskId}: ${response.statusText}`);
             }
           } catch (error) {
             fetchError = error instanceof Error ? error.message : "Unknown error";
@@ -217,6 +223,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           isImmutable: true, // Bulk imported from ClickUp are immutable
         });
 
+        console.log(`   Created Sub-ID: ${subIdValue}${liveUrl ? ` with URL: ${liveUrl}` : ' (no URL)'}`);
         createdSubIds.push(newSubId);
         
         // Track if there was a fetch error

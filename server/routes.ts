@@ -625,6 +625,75 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Extract affiliate links from ClickUp task description and comments
+  app.get("/api/clickup/task/:taskId/affiliate-links", async (req, res) => {
+    try {
+      const apiKey = process.env.CLICKUP_API_KEY;
+      
+      if (!apiKey) {
+        return res.status(500).json({ error: "ClickUp API key not configured" });
+      }
+
+      const taskId = req.params.taskId;
+      
+      // Fetch task details
+      const taskResponse = await fetch(`https://api.clickup.com/api/v2/task/${taskId}`, {
+        headers: {
+          'Authorization': apiKey,
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (!taskResponse.ok) {
+        return res.status(taskResponse.status).json({ error: "Failed to fetch ClickUp task" });
+      }
+
+      const taskData = await taskResponse.json();
+      
+      // Fetch comments
+      const commentsResponse = await fetch(`https://api.clickup.com/api/v2/task/${taskId}/comment`, {
+        headers: {
+          'Authorization': apiKey,
+          'Content-Type': 'application/json',
+        },
+      });
+
+      let comments: any[] = [];
+      if (commentsResponse.ok) {
+        const commentsData = await commentsResponse.json();
+        comments = commentsData.comments || [];
+      }
+
+      // Extract affiliate links from description and comments
+      const affiliateLinks: string[] = [];
+      const urlRegex = /https?:\/\/[^\s<>"]+/g;
+      
+      // Check description
+      if (taskData.description) {
+        const urls = taskData.description.match(urlRegex) || [];
+        affiliateLinks.push(...urls.filter((url: string) => url.includes('payload=')));
+      }
+
+      // Check comments
+      for (const comment of comments) {
+        if (comment.comment_text) {
+          const urls = comment.comment_text.match(urlRegex) || [];
+          affiliateLinks.push(...urls.filter((url: string) => url.includes('payload=')));
+        }
+      }
+
+      // Remove duplicates
+      const uniqueLinks = Array.from(new Set(affiliateLinks));
+
+      console.log(`🔗 Found ${uniqueLinks.length} affiliate link(s) in ClickUp task ${taskId}`);
+      
+      res.json({ links: uniqueLinks });
+    } catch (error: any) {
+      console.error("Error fetching affiliate links from ClickUp task:", error);
+      res.status(500).json({ error: error.message || "Failed to fetch affiliate links" });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }

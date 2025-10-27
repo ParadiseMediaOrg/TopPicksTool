@@ -77,9 +77,9 @@ export function SubIdTable({ subIds, onCopy, onExportCSV, onDelete, onPostCommen
   }
 
   return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <p className="text-sm text-muted-foreground">
+    <div className="space-y-6">
+      <div className="flex items-center justify-between gap-4">
+        <p className="text-sm text-muted-foreground font-medium">
           {subIds.length} Sub-ID{subIds.length !== 1 ? "s" : ""} generated
         </p>
         <Button
@@ -93,7 +93,7 @@ export function SubIdTable({ subIds, onCopy, onExportCSV, onDelete, onPostCommen
         </Button>
       </div>
 
-      <div className="border rounded-md">
+      <div className="border rounded-lg overflow-hidden">
         <Table>
           <TableHeader>
             <TableRow>
@@ -109,17 +109,17 @@ export function SubIdTable({ subIds, onCopy, onExportCSV, onDelete, onPostCommen
               const isDuplicate = duplicateSubIds.has(subId.value);
               return (
                 <TableRow key={subId.id} className={isDuplicate ? "bg-destructive/10" : ""}>
-                  <TableCell className={`font-mono font-medium ${isDuplicate ? "text-destructive" : ""}`}>
-                    <div className="flex flex-col gap-1">
+                  <TableCell className={`font-mono font-medium py-4 ${isDuplicate ? "text-destructive" : ""}`}>
+                    <div className="flex flex-col gap-2">
                       <div className="flex items-center gap-2">
-                        {subId.value}
+                        <span className="break-all">{subId.value}</span>
                         {subId.isImmutable && (
-                          <Lock className="h-3 w-3 text-muted-foreground" />
+                          <Lock className="h-3 w-3 text-muted-foreground flex-shrink-0" />
                         )}
                       </div>
                       {subId.clickupTaskId && (
-                        <div className="flex items-center gap-1">
-                          <Badge variant="outline" className="text-xs font-mono">
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <Badge variant="outline" className="text-xs font-mono px-2 py-0.5">
                             <Link2 className="h-2.5 w-2.5 mr-1" />
                             {subId.clickupTaskId}
                           </Badge>
@@ -137,37 +137,36 @@ export function SubIdTable({ subIds, onCopy, onExportCSV, onDelete, onPostCommen
                       )}
                     </div>
                   </TableCell>
-                  <TableCell className="text-sm">
+                  <TableCell className="text-sm py-4">
                     {subId.url ? (
                       <a 
                         href={subId.url} 
                         target="_blank" 
                         rel="noopener noreferrer"
-                        className="text-primary hover:underline flex items-center gap-1 max-w-md truncate"
+                        className="text-primary hover:underline flex items-center gap-1.5 group"
                       >
-                        <span className="truncate">{subId.url}</span>
-                        <ExternalLink className="h-3 w-3 flex-shrink-0" />
+                        <span className="truncate max-w-xs">{subId.url}</span>
+                        <ExternalLink className="h-3 w-3 flex-shrink-0 opacity-50 group-hover:opacity-100 transition-opacity" />
                       </a>
                     ) : (
                       <span className="text-muted-foreground">—</span>
                     )}
                   </TableCell>
-                  <TableCell>
+                  <TableCell className="py-4">
                     <Button
                       variant={subId.clickupTaskId ? "secondary" : "outline"}
                       size="sm"
                       onClick={() => handleOpenClickUpDialog(subId)}
                       data-testid={`button-clickup-${subId.id}`}
-                      className="h-8"
                     >
-                      <Link2 className="h-3 w-3 mr-1" />
+                      <Link2 className="h-3.5 w-3.5 mr-1.5" />
                       {subId.clickupTaskId ? "Linked" : "Link"}
                     </Button>
                   </TableCell>
-                  <TableCell className="text-sm text-muted-foreground">
+                  <TableCell className="text-sm text-muted-foreground py-4 whitespace-nowrap">
                     {format(new Date(subId.timestamp), "MMM d, yyyy h:mm a")}
                   </TableCell>
-                  <TableCell className="text-right">
+                  <TableCell className="text-right py-4">
                     <div className="flex items-center justify-end gap-1">
                       <Button
                         variant="ghost"

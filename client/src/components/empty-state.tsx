@@ -7,7 +7,7 @@ interface EmptyStateProps {
 
 export function EmptyState({ onAddWebsite }: EmptyStateProps) {
   return (
-    <div className="flex flex-col items-center justify-center h-full py-16 text-center">
+    <div className="flex flex-col items-center justify-center h-full py-20 px-6 text-center">
       <div className="rounded-full bg-muted p-6 mb-6">
         <div className="h-12 w-12 text-muted-foreground">
           <svg
@@ -24,12 +24,12 @@ export function EmptyState({ onAddWebsite }: EmptyStateProps) {
           </svg>
         </div>
       </div>
-      <h2 className="text-xl font-semibold mb-2">No Websites Yet</h2>
-      <p className="text-sm text-muted-foreground mb-6 max-w-md">
+      <h2 className="text-2xl font-semibold mb-3 tracking-tight">No Websites Yet</h2>
+      <p className="text-sm text-muted-foreground mb-8 max-w-md leading-relaxed">
         Get started by adding your first website to begin generating and
         tracking unique Sub-IDs
       </p>
-      <Button onClick={onAddWebsite} data-testid="button-add-first-website">
+      <Button onClick={onAddWebsite} data-testid="button-add-first-website" size="lg">
         <Plus className="h-4 w-4 mr-2" />
         Add Your First Website
       </Button>

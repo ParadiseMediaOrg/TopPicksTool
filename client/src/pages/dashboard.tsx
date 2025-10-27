@@ -404,14 +404,15 @@ export default function Dashboard() {
           onAddWebsite={() => setIsAddDialogOpen(true)}
         />
         <div className="flex flex-col flex-1">
-          <header className="flex items-center justify-between p-2 border-b">
+          <header className="flex items-center justify-between px-6 py-4 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
             <SidebarTrigger data-testid="button-sidebar-toggle" />
             <ThemeToggle />
           </header>
-          <main className="flex-1 overflow-hidden">
+          <main className="flex-1 overflow-auto">
             {selectedWebsite ? (
               <div className="h-full flex flex-col">
-                <WebsiteHeader
+                <div className="px-6 py-6 border-b bg-background">
+                  <WebsiteHeader
                   websiteName={selectedWebsite.name}
                   formatPattern={selectedWebsite.formatPattern}
                   subIdCount={selectedWebsite.subIdCount}
@@ -425,8 +426,10 @@ export default function Dashboard() {
                   onBulkPostComments={handleBulkPostComments}
                   isRefreshing={refreshUrlsMutation.isPending}
                   isPostingComments={bulkPostCommentsMutation.isPending}
-                />
-                <SubIdTable
+                  />
+                </div>
+                <div className="flex-1 overflow-auto px-6 py-6">
+                  <SubIdTable
                   subIds={subIds}
                   onCopy={handleCopy}
                   onExportCSV={handleExportCSV}
@@ -435,7 +438,8 @@ export default function Dashboard() {
                   duplicateSubIds={duplicateSubIds}
                   isLoading={isLoadingSubIds}
                   postingCommentId={postCommentMutation.isPending ? postCommentMutation.variables : null}
-                />
+                  />
+                </div>
               </div>
             ) : (
               <EmptyState onAddWebsite={() => setIsAddDialogOpen(true)} />

@@ -34,12 +34,12 @@ export function WebsiteHeader({
   isPostingComments = false,
 }: WebsiteHeaderProps) {
   return (
-    <div className="space-y-4">
-      <div className="flex items-start justify-between gap-4">
-        <div className="space-y-1">
-          <h1 className="text-2xl font-semibold">{websiteName}</h1>
-          <div className="flex items-center gap-2">
-            <Badge variant="secondary" className="font-mono text-xs">
+    <div className="space-y-6">
+      <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
+        <div className="space-y-2">
+          <h1 className="text-2xl font-semibold tracking-tight">{websiteName}</h1>
+          <div className="flex items-center gap-3 flex-wrap">
+            <Badge variant="secondary" className="font-mono text-xs px-2.5 py-1">
               {formatPattern}
             </Badge>
             <span className="text-sm text-muted-foreground">
@@ -47,7 +47,7 @@ export function WebsiteHeader({
             </span>
           </div>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
           <Button
             variant="outline"
             size="icon"

@@ -23,49 +23,12 @@ interface SubId {
 
 export default function Dashboard() {
   const { toast } = useToast();
-  const [websites, setWebsites] = useState<Website[]>([
-    {
-      id: "1",
-      name: "E-commerce Store",
-      formatPattern: "ABC-{random4digits}-{random3letters}",
-      subIdCount: 4,
-    },
-    {
-      id: "2",
-      name: "Blog Network",
-      formatPattern: "{timestamp}-{rand6chars}",
-      subIdCount: 3,
-    },
-  ]);
+  const [websites, setWebsites] = useState<Website[]>([]);
 
-  const [subIds, setSubIds] = useState<Record<string, SubId[]>>({
-    "1": [
-      { id: "1", value: "ABC-4829-XYZ", timestamp: Date.now() - 3600000 },
-      { id: "2", value: "ABC-7251-MNP", timestamp: Date.now() - 7200000 },
-      { id: "3", value: "ABC-9184-QRS", timestamp: Date.now() - 10800000 },
-      { id: "4", value: "ABC-3562-DEF", timestamp: Date.now() - 14400000 },
-    ],
-    "2": [
-      {
-        id: "5",
-        value: `${Date.now() - 3600000}-A1B2C3`,
-        timestamp: Date.now() - 3600000,
-      },
-      {
-        id: "6",
-        value: `${Date.now() - 7200000}-D4E5F6`,
-        timestamp: Date.now() - 7200000,
-      },
-      {
-        id: "7",
-        value: `${Date.now() - 10800000}-G7H8I9`,
-        timestamp: Date.now() - 10800000,
-      },
-    ],
-  });
+  const [subIds, setSubIds] = useState<Record<string, SubId[]>>({});
 
   const [selectedWebsiteId, setSelectedWebsiteId] = useState<string | null>(
-    "1"
+    null
   );
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
 

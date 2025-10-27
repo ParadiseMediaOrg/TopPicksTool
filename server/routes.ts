@@ -195,7 +195,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 const liveUrlField = taskData.custom_fields.find(
                   (field: any) => {
                     const fieldName = (field.name || '').toLowerCase();
-                    return (fieldName === 'live url' || fieldName === 'liveurl' || fieldName === 'url') && field.value;
+                    return (fieldName === '*live url' || fieldName === 'live url' || fieldName === 'liveurl' || fieldName === 'url') && field.value;
                   }
                 );
                 
@@ -305,10 +305,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
           if (response.ok) {
             const taskData = await response.json();
             
-            // Look for "Live URL" custom field
+            // Look for "*Live URL" or "Live URL" custom field
             if (taskData.custom_fields && Array.isArray(taskData.custom_fields)) {
               const liveUrlField = taskData.custom_fields.find(
-                (field: any) => field.name === "Live URL" && field.value
+                (field: any) => {
+                  const fieldName = (field.name || '').toLowerCase();
+                  return (fieldName === '*live url' || fieldName === 'live url') && field.value;
+                }
               );
               
               if (liveUrlField && liveUrlField.value) {

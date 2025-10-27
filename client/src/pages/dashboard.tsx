@@ -1,59 +1,62 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
+import { useQuery, useMutation } from "@tanstack/react-query";
 import { AppSidebar } from "@/components/app-sidebar";
 import { WebsiteHeader } from "@/components/website-header";
 import { SubIdTable } from "@/components/subid-table";
 import { AddWebsiteDialog } from "@/components/add-website-dialog";
+import { BulkImportDialog } from "@/components/bulk-import-dialog";
 import { EmptyState } from "@/components/empty-state";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { useToast } from "@/hooks/use-toast";
+import { queryClient, apiRequest } from "@/lib/queryClient";
+import type { Website, SubId } from "@shared/schema";
 
-interface Website {
-  id: string;
-  name: string;
-  formatPattern: string;
+interface WebsiteWithCount extends Website {
   subIdCount: number;
-}
-
-interface SubId {
-  id: string;
-  value: string;
-  timestamp: number;
 }
 
 export default function Dashboard() {
   const { toast } = useToast();
-  const [websites, setWebsites] = useState<Website[]>([]);
-
-  const [subIds, setSubIds] = useState<Record<string, SubId[]>>({});
-
-  const [selectedWebsiteId, setSelectedWebsiteId] = useState<string | null>(
-    null
-  );
+  const [selectedWebsiteId, setSelectedWebsiteId] = useState<string | null>(null);
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
+  const [isBulkImportOpen, setIsBulkImportOpen] = useState(false);
 
-  const selectedWebsite = websites.find((w) => w.id === selectedWebsiteId);
-  const selectedSubIds = selectedWebsiteId ? subIds[selectedWebsiteId] || [] : [];
+  // Fetch websites
+  const { data: websites = [], isLoading: isLoadingWebsites } = useQuery<WebsiteWithCount[]>({
+    queryKey: ["/api/websites"],
+  });
 
-  const findDuplicateSubIds = (): Set<string> => {
-    const allSubIds: string[] = [];
+  // Fetch Sub-IDs for selected website
+  const { data: subIds = [], isLoading: isLoadingSubIds } = useQuery<SubId[]>({
+    queryKey: ["/api/websites", selectedWebsiteId, "subids"],
+    enabled: !!selectedWebsiteId,
+  });
+
+  // Fetch all Sub-IDs for duplicate detection
+  const { data: allSubIds = [] } = useQuery<SubId[]>({
+    queryKey: ["/api/subids"],
+  });
+
+  // Find duplicate Sub-IDs
+  const duplicateSubIds = useMemo(() => {
+    const valueMap = new Map<string, number>();
     const duplicates = new Set<string>();
     
-    Object.values(subIds).forEach((websiteSubIds) => {
-      websiteSubIds.forEach((subId) => {
-        if (allSubIds.includes(subId.value)) {
-          duplicates.add(subId.value);
-        } else {
-          allSubIds.push(subId.value);
-        }
-      });
+    allSubIds.forEach((subId) => {
+      const count = valueMap.get(subId.value) || 0;
+      valueMap.set(subId.value, count + 1);
+      if (count >= 1) {
+        duplicates.add(subId.value);
+      }
     });
     
     return duplicates;
-  };
+  }, [allSubIds]);
 
-  const duplicateSubIds = findDuplicateSubIds();
+  const selectedWebsite = websites.find((w) => w.id === selectedWebsiteId);
 
+  // Generate Sub-ID from pattern
   const generateSubId = (pattern: string): string => {
     let result = pattern;
     const now = new Date();
@@ -92,78 +95,119 @@ export default function Dashboard() {
     return result;
   };
 
-  const handleGenerateId = () => {
-    if (!selectedWebsite) return;
-
-    const newSubId: SubId = {
-      id: Math.random().toString(36).substring(7),
-      value: generateSubId(selectedWebsite.formatPattern),
-      timestamp: Date.now(),
-    };
-
-    const allExistingSubIds = Object.values(subIds)
-      .flat()
-      .map((s) => s.value);
-    
-    const isDuplicate = allExistingSubIds.includes(newSubId.value);
-
-    setSubIds((prev) => ({
-      ...prev,
-      [selectedWebsite.id]: [newSubId, ...(prev[selectedWebsite.id] || [])],
-    }));
-
-    setWebsites((prev) =>
-      prev.map((w) =>
-        w.id === selectedWebsite.id ? { ...w, subIdCount: w.subIdCount + 1 } : w
-      )
-    );
-
-    if (isDuplicate) {
+  // Create website mutation
+  const createWebsiteMutation = useMutation({
+    mutationFn: async (data: { name: string; formatPattern: string }) => {
+      const res = await apiRequest("POST", "/api/websites", data);
+      return await res.json();
+    },
+    onSuccess: (newWebsite: WebsiteWithCount) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/websites"] });
+      setSelectedWebsiteId(newWebsite.id);
       toast({
-        title: "⚠️ Duplicate Sub-ID Detected!",
-        description: `${newSubId.value} already exists in another website. This is highlighted in red.`,
-        variant: "destructive",
+        title: "Website Added",
+        description: `${newWebsite.name} has been created.`,
       });
-    } else {
+    },
+  });
+
+  // Delete website mutation
+  const deleteWebsiteMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const res = await apiRequest("DELETE", `/api/websites/${id}`);
+      return await res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/websites"] });
+      setSelectedWebsiteId(null);
       toast({
-        title: "Sub-ID Generated",
-        description: `Created: ${newSubId.value}`,
+        title: "Website Deleted",
+        description: "The website and all its Sub-IDs have been deleted.",
       });
-    }
-  };
+    },
+  });
+
+  // Generate single Sub-ID mutation
+  const generateSubIdMutation = useMutation({
+    mutationFn: async ({ websiteId, value }: { websiteId: string; value: string }) => {
+      const res = await apiRequest("POST", `/api/websites/${websiteId}/subids`, {
+        websiteId,
+        value,
+        timestamp: Date.now(),
+        isImmutable: false,
+      });
+      return await res.json();
+    },
+    onSuccess: (newSubId: SubId) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/websites", selectedWebsiteId, "subids"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/websites"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/subids"] });
+
+      const isDuplicate = allSubIds.some((s) => s.value === newSubId.value && s.id !== newSubId.id);
+      
+      if (isDuplicate) {
+        toast({
+          title: "⚠️ Duplicate Sub-ID Detected!",
+          description: `${newSubId.value} already exists in another website. This is highlighted in red.`,
+          variant: "destructive",
+        });
+      } else {
+        toast({
+          title: "Sub-ID Generated",
+          description: `Created: ${newSubId.value}`,
+        });
+      }
+    },
+  });
+
+  // Bulk import Sub-IDs mutation
+  const bulkImportMutation = useMutation({
+    mutationFn: async ({ websiteId, urls }: { websiteId: string; urls: string[] }) => {
+      const subIdList = urls.map((url) => ({
+        websiteId,
+        value: generateSubId(selectedWebsite!.formatPattern),
+        url,
+        timestamp: Date.now(),
+        isImmutable: true,
+      }));
+
+      const res = await apiRequest("POST", `/api/websites/${websiteId}/subids/bulk`, { subIds: subIdList });
+      return await res.json();
+    },
+    onSuccess: (createdSubIds: SubId[]) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/websites", selectedWebsiteId, "subids"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/websites"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/subids"] });
+      toast({
+        title: "Bulk Import Complete",
+        description: `Generated ${createdSubIds.length} immutable Sub-ID/URL pairs.`,
+      });
+    },
+  });
 
   const handleAddWebsite = (data: { name: string; formatPattern: string }) => {
-    const newWebsite: Website = {
-      id: Math.random().toString(36).substring(7),
-      name: data.name,
-      formatPattern: data.formatPattern,
-      subIdCount: 0,
-    };
+    createWebsiteMutation.mutate(data);
+  };
 
-    setWebsites((prev) => [...prev, newWebsite]);
-    setSubIds((prev) => ({ ...prev, [newWebsite.id]: [] }));
-    setSelectedWebsiteId(newWebsite.id);
-
-    toast({
-      title: "Website Added",
-      description: `${data.name} has been added successfully`,
+  const handleGenerateId = () => {
+    if (!selectedWebsite) return;
+    const value = generateSubId(selectedWebsite.formatPattern);
+    generateSubIdMutation.mutate({
+      websiteId: selectedWebsite.id,
+      value,
     });
   };
 
   const handleDeleteWebsite = () => {
     if (!selectedWebsite) return;
+    deleteWebsiteMutation.mutate(selectedWebsite.id);
+  };
 
-    setWebsites((prev) => prev.filter((w) => w.id !== selectedWebsite.id));
-    setSubIds((prev) => {
-      const newSubIds = { ...prev };
-      delete newSubIds[selectedWebsite.id];
-      return newSubIds;
-    });
-    setSelectedWebsiteId(websites.length > 1 ? websites[0].id : null);
-
-    toast({
-      title: "Website Deleted",
-      description: `${selectedWebsite.name} has been removed`,
+  const handleBulkImport = (urls: string[]) => {
+    if (!selectedWebsite) return;
+    bulkImportMutation.mutate({
+      websiteId: selectedWebsite.id,
+      urls,
     });
   };
 
@@ -171,44 +215,51 @@ export default function Dashboard() {
     navigator.clipboard.writeText(value);
     toast({
       title: "Copied!",
-      description: "Sub-ID copied to clipboard",
+      description: `${value} copied to clipboard`,
     });
   };
 
   const handleExportCSV = () => {
-    if (!selectedWebsite || selectedSubIds.length === 0) return;
+    if (!selectedWebsite || subIds.length === 0) return;
 
-    const csv = [
-      ["Sub-ID", "Timestamp"],
-      ...selectedSubIds.map((subId) => [
-        subId.value,
-        new Date(subId.timestamp).toISOString(),
-      ]),
-    ]
-      .map((row) => row.join(","))
-      .join("\n");
+    const headers = ["Sub-ID", "URL", "Timestamp", "Immutable"];
+    const rows = subIds.map((subId) => [
+      subId.value,
+      subId.url || "",
+      new Date(subId.timestamp).toISOString(),
+      subId.isImmutable ? "Yes" : "No",
+    ]);
 
+    const csv = [headers, ...rows].map((row) => row.join(",")).join("\n");
     const blob = new Blob([csv], { type: "text/csv" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `${selectedWebsite.name.toLowerCase().replace(/\s+/g, "-")}-subids-${Date.now()}.csv`;
+    a.download = `${selectedWebsite.name}-subids.csv`;
     a.click();
     URL.revokeObjectURL(url);
 
     toast({
       title: "CSV Exported",
-      description: "Sub-IDs have been exported successfully",
+      description: `Exported ${subIds.length} Sub-IDs`,
     });
   };
 
-  const style = {
+  const sidebarStyle = {
     "--sidebar-width": "20rem",
     "--sidebar-width-icon": "4rem",
-  };
+  } as React.CSSProperties;
+
+  if (isLoadingWebsites) {
+    return (
+      <div className="flex h-screen items-center justify-center">
+        <p className="text-muted-foreground">Loading...</p>
+      </div>
+    );
+  }
 
   return (
-    <SidebarProvider style={style as React.CSSProperties}>
+    <SidebarProvider style={sidebarStyle}>
       <div className="flex h-screen w-full">
         <AppSidebar
           websites={websites}
@@ -216,30 +267,28 @@ export default function Dashboard() {
           onSelectWebsite={setSelectedWebsiteId}
           onAddWebsite={() => setIsAddDialogOpen(true)}
         />
-
         <div className="flex flex-col flex-1">
-          <header className="flex items-center justify-between p-4 border-b">
+          <header className="flex items-center justify-between p-2 border-b">
             <SidebarTrigger data-testid="button-sidebar-toggle" />
             <ThemeToggle />
           </header>
-
-          <main className="flex-1 overflow-auto p-8">
-            {websites.length === 0 ? (
-              <EmptyState onAddWebsite={() => setIsAddDialogOpen(true)} />
-            ) : selectedWebsite ? (
-              <div className="max-w-6xl mx-auto space-y-8">
+          <main className="flex-1 overflow-hidden">
+            {selectedWebsite ? (
+              <div className="h-full flex flex-col">
                 <WebsiteHeader
                   websiteName={selectedWebsite.name}
                   formatPattern={selectedWebsite.formatPattern}
                   subIdCount={selectedWebsite.subIdCount}
                   onGenerateId={handleGenerateId}
                   onDeleteWebsite={handleDeleteWebsite}
+                  onBulkImport={() => setIsBulkImportOpen(true)}
                 />
                 <SubIdTable
-                  subIds={selectedSubIds}
+                  subIds={subIds}
                   onCopy={handleCopy}
                   onExportCSV={handleExportCSV}
                   duplicateSubIds={duplicateSubIds}
+                  isLoading={isLoadingSubIds}
                 />
               </div>
             ) : (
@@ -255,6 +304,15 @@ export default function Dashboard() {
         onSubmit={handleAddWebsite}
         existingPatterns={websites.map((w) => w.formatPattern)}
       />
+
+      {selectedWebsite && (
+        <BulkImportDialog
+          open={isBulkImportOpen}
+          onOpenChange={setIsBulkImportOpen}
+          onSubmit={handleBulkImport}
+          websiteName={selectedWebsite.name}
+        />
+      )}
     </SidebarProvider>
   );
 }

@@ -1,6 +1,7 @@
-import { Copy, Check, Download } from "lucide-react";
+import { Copy, Check, Download, Lock, ExternalLink } from "lucide-react";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import {
   Table,
   TableBody,
@@ -10,21 +11,17 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { format } from "date-fns";
-
-interface SubId {
-  id: string;
-  value: string;
-  timestamp: number;
-}
+import type { SubId } from "@shared/schema";
 
 interface SubIdTableProps {
   subIds: SubId[];
   onCopy: (value: string) => void;
   onExportCSV: () => void;
   duplicateSubIds: Set<string>;
+  isLoading?: boolean;
 }
 
-export function SubIdTable({ subIds, onCopy, onExportCSV, duplicateSubIds }: SubIdTableProps) {
+export function SubIdTable({ subIds, onCopy, onExportCSV, duplicateSubIds, isLoading }: SubIdTableProps) {
   const [copiedId, setCopiedId] = useState<string | null>(null);
 
   const handleCopy = (id: string, value: string) => {
@@ -32,6 +29,14 @@ export function SubIdTable({ subIds, onCopy, onExportCSV, duplicateSubIds }: Sub
     setCopiedId(id);
     setTimeout(() => setCopiedId(null), 2000);
   };
+
+  if (isLoading) {
+    return (
+      <div className="flex flex-col items-center justify-center py-16 text-center">
+        <p className="text-muted-foreground">Loading Sub-IDs...</p>
+      </div>
+    );
+  }
 
   if (subIds.length === 0) {
     return (
@@ -81,8 +86,9 @@ export function SubIdTable({ subIds, onCopy, onExportCSV, duplicateSubIds }: Sub
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead className="w-[50%]">Sub-ID</TableHead>
-              <TableHead className="w-[35%]">Timestamp</TableHead>
+              <TableHead className="w-[30%]">Sub-ID</TableHead>
+              <TableHead className="w-[35%]">URL</TableHead>
+              <TableHead className="w-[20%]">Timestamp</TableHead>
               <TableHead className="w-[15%] text-right">Actions</TableHead>
             </TableRow>
           </TableHeader>
@@ -92,7 +98,27 @@ export function SubIdTable({ subIds, onCopy, onExportCSV, duplicateSubIds }: Sub
               return (
                 <TableRow key={subId.id} className={isDuplicate ? "bg-destructive/10" : ""}>
                   <TableCell className={`font-mono font-medium ${isDuplicate ? "text-destructive" : ""}`}>
-                    {subId.value}
+                    <div className="flex items-center gap-2">
+                      {subId.value}
+                      {subId.isImmutable && (
+                        <Lock className="h-3 w-3 text-muted-foreground" />
+                      )}
+                    </div>
+                  </TableCell>
+                  <TableCell className="text-sm">
+                    {subId.url ? (
+                      <a 
+                        href={subId.url} 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        className="text-primary hover:underline flex items-center gap-1 max-w-md truncate"
+                      >
+                        <span className="truncate">{subId.url}</span>
+                        <ExternalLink className="h-3 w-3 flex-shrink-0" />
+                      </a>
+                    ) : (
+                      <span className="text-muted-foreground">—</span>
+                    )}
                   </TableCell>
                   <TableCell className="text-sm text-muted-foreground">
                     {format(new Date(subId.timestamp), "MMM d, yyyy h:mm a")}

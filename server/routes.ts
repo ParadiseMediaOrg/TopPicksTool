@@ -20,6 +20,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       );
       res.json(websitesWithCount);
     } catch (error) {
+      console.error("Error fetching websites:", error);
       res.status(500).json({ error: "Failed to fetch websites" });
     }
   });
@@ -95,6 +96,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const allSubIds = await storage.getAllSubIds();
       res.json(allSubIds);
     } catch (error) {
+      console.error("Error fetching all sub-IDs:", error);
       res.status(500).json({ error: "Failed to fetch all sub-IDs" });
     }
   });

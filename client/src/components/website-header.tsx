@@ -1,4 +1,4 @@
-import { Plus, Trash2, Settings } from "lucide-react";
+import { Plus, Trash2, Upload } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 
@@ -8,6 +8,7 @@ interface WebsiteHeaderProps {
   subIdCount: number;
   onGenerateId: () => void;
   onDeleteWebsite: () => void;
+  onBulkImport: () => void;
 }
 
 export function WebsiteHeader({
@@ -16,6 +17,7 @@ export function WebsiteHeader({
   subIdCount,
   onGenerateId,
   onDeleteWebsite,
+  onBulkImport,
 }: WebsiteHeaderProps) {
   return (
     <div className="space-y-4">
@@ -39,6 +41,14 @@ export function WebsiteHeader({
             data-testid="button-delete-website"
           >
             <Trash2 className="h-4 w-4" />
+          </Button>
+          <Button
+            variant="outline"
+            onClick={onBulkImport}
+            data-testid="button-bulk-import"
+          >
+            <Upload className="h-4 w-4 mr-2" />
+            Bulk Import URLs
           </Button>
           <Button onClick={onGenerateId} data-testid="button-generate-id">
             <Plus className="h-4 w-4 mr-2" />

@@ -187,15 +187,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
               // Look for "Live URL" custom field
               if (taskData.custom_fields && Array.isArray(taskData.custom_fields)) {
                 console.log(`   Found ${taskData.custom_fields.length} custom field(s) in task`);
+                
+                // Debug: Show all custom field names
+                console.log(`   Custom field names:`, taskData.custom_fields.map((f: any) => f.name).join(', '));
+                
+                // Try multiple possible field names (case-insensitive)
                 const liveUrlField = taskData.custom_fields.find(
-                  (field: any) => field.name === "Live URL" && field.value
+                  (field: any) => {
+                    const fieldName = (field.name || '').toLowerCase();
+                    return (fieldName === 'live url' || fieldName === 'liveurl' || fieldName === 'url') && field.value;
+                  }
                 );
                 
                 if (liveUrlField && liveUrlField.value) {
                   liveUrl = liveUrlField.value;
-                  console.log(`   ✅ Live URL extracted: ${liveUrl}`);
+                  console.log(`   ✅ Live URL extracted from field "${liveUrlField.name}": ${liveUrl}`);
                 } else {
                   console.log(`   ⚠️  No "Live URL" custom field found with a value`);
+                  // Show fields with values for debugging
+                  const fieldsWithValues = taskData.custom_fields.filter((f: any) => f.value);
+                  if (fieldsWithValues.length > 0) {
+                    console.log(`   Fields with values: ${fieldsWithValues.map((f: any) => f.name).slice(0, 10).join(', ')}`);
+                  }
                 }
               } else {
                 console.log(`   ⚠️  Task has no custom_fields array`);

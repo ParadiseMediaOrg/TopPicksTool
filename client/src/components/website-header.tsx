@@ -1,4 +1,4 @@
-import { Plus, Trash2, Upload, FileUp, RefreshCw } from "lucide-react";
+import { Plus, Trash2, Upload, FileUp, RefreshCw, MessageSquare } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 
@@ -7,12 +7,15 @@ interface WebsiteHeaderProps {
   formatPattern: string;
   subIdCount: number;
   missingUrlCount: number;
+  linkedTaskCount: number;
   onGenerateId: () => void;
   onDeleteWebsite: () => void;
   onBulkImport: () => void;
   onBulkClickUpImport: () => void;
   onRefreshUrls: () => void;
+  onBulkPostComments: () => void;
   isRefreshing?: boolean;
+  isPostingComments?: boolean;
 }
 
 export function WebsiteHeader({
@@ -20,12 +23,15 @@ export function WebsiteHeader({
   formatPattern,
   subIdCount,
   missingUrlCount,
+  linkedTaskCount,
   onGenerateId,
   onDeleteWebsite,
   onBulkImport,
   onBulkClickUpImport,
   onRefreshUrls,
+  onBulkPostComments,
   isRefreshing = false,
+  isPostingComments = false,
 }: WebsiteHeaderProps) {
   return (
     <div className="space-y-4">
@@ -59,6 +65,17 @@ export function WebsiteHeader({
             >
               <RefreshCw className={`h-4 w-4 mr-2 ${isRefreshing ? 'animate-spin' : ''}`} />
               Refresh URLs ({missingUrlCount})
+            </Button>
+          )}
+          {linkedTaskCount > 0 && (
+            <Button
+              variant="outline"
+              onClick={onBulkPostComments}
+              disabled={isPostingComments}
+              data-testid="button-bulk-post-comments"
+            >
+              <MessageSquare className="h-4 w-4 mr-2" />
+              Post Comments ({linkedTaskCount})
             </Button>
           )}
           <Button

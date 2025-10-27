@@ -379,6 +379,107 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.post("/api/websites/:websiteId/clickup/post-comments", async (req, res) => {
+    try {
+      const apiKey = process.env.CLICKUP_API_KEY;
+      
+      if (!apiKey) {
+        return res.status(500).json({ error: "ClickUp API key not configured" });
+      }
+
+      const websiteId = req.params.websiteId;
+      
+      // Get all Sub-IDs for this website that have ClickUp tasks
+      const allSubIds = await storage.getSubIdsByWebsite(websiteId);
+      const subIdsWithTasks = allSubIds.filter(s => s.clickupTaskId);
+      
+      if (subIdsWithTasks.length === 0) {
+        return res.json({ posted: 0, message: "No Sub-IDs with ClickUp tasks" });
+      }
+
+      console.log(`\n💬 Checking ${subIdsWithTasks.length} Sub-ID(s) for ClickUp comments...`);
+      
+      const posted: any[] = [];
+      const skipped: any[] = [];
+      const errors: any[] = [];
+
+      for (const subId of subIdsWithTasks) {
+        try {
+          // First, fetch existing comments for the task
+          const commentsResponse = await fetch(
+            `https://api.clickup.com/api/v2/task/${subId.clickupTaskId}/comment`,
+            {
+              headers: {
+                'Authorization': apiKey,
+                'Content-Type': 'application/json',
+              },
+            }
+          );
+
+          if (commentsResponse.ok) {
+            const commentsData = await commentsResponse.json();
+            const comments = commentsData.comments || [];
+            
+            // Check if any comment contains the Sub-ID value
+            const hasSubIdComment = comments.some((comment: any) => 
+              comment.comment_text && comment.comment_text.includes(subId.value)
+            );
+
+            if (hasSubIdComment) {
+              console.log(`   ⏭️  Task ${subId.clickupTaskId} already has Sub-ID comment`);
+              skipped.push({ subId: subId.value, taskId: subId.clickupTaskId, reason: "Already commented" });
+            } else {
+              // Post the comment
+              const commentText = `Sub-ID: ${subId.value}`;
+              const postResponse = await fetch(
+                `https://api.clickup.com/api/v2/task/${subId.clickupTaskId}/comment`,
+                {
+                  method: 'POST',
+                  headers: {
+                    'Authorization': apiKey,
+                    'Content-Type': 'application/json',
+                  },
+                  body: JSON.stringify({
+                    comment_text: commentText,
+                  }),
+                }
+              );
+
+              if (postResponse.ok) {
+                console.log(`   ✅ Posted comment to task ${subId.clickupTaskId}: "${commentText}"`);
+                posted.push({ subId: subId.value, taskId: subId.clickupTaskId });
+              } else {
+                const errorData = await postResponse.text();
+                console.error(`   ❌ Failed to post comment to task ${subId.clickupTaskId}: ${postResponse.statusText}`);
+                errors.push({ subId: subId.value, taskId: subId.clickupTaskId, error: postResponse.statusText });
+              }
+            }
+          } else {
+            console.warn(`   ❌ Could not fetch comments for task ${subId.clickupTaskId}: ${commentsResponse.statusText}`);
+            errors.push({ subId: subId.value, taskId: subId.clickupTaskId, error: `Could not fetch comments: ${commentsResponse.statusText}` });
+          }
+        } catch (error: any) {
+          console.error(`   Error processing task ${subId.clickupTaskId}:`, error);
+          errors.push({ subId: subId.value, taskId: subId.clickupTaskId, error: error.message });
+        }
+      }
+
+      console.log(`\n✅ Bulk Comment Complete: ${posted.length} new comments posted, ${skipped.length} skipped`);
+
+      res.json({
+        posted: posted.length,
+        skipped: skipped.length,
+        checked: subIdsWithTasks.length,
+        postedDetails: posted,
+        skippedDetails: skipped,
+        errors: errors.length > 0 ? errors : undefined,
+      });
+    } catch (error: any) {
+      console.error("Error posting bulk comments:", error);
+      res.status(500).json({ error: error.message || "Failed to post bulk comments" });
+    }
+  });
+
   app.post("/api/subids/:id/clickup/comment", async (req, res) => {
     try {
       const apiKey = process.env.CLICKUP_API_KEY;

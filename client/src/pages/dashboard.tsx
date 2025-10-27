@@ -244,9 +244,13 @@ export default function Dashboard() {
     },
   });
 
-  // Calculate missing URL count
+  // Calculate missing URL count and linked task count
   const missingUrlCount = useMemo(() => {
     return subIds.filter(s => s.clickupTaskId && !s.url).length;
+  }, [subIds]);
+
+  const linkedTaskCount = useMemo(() => {
+    return subIds.filter(s => s.clickupTaskId).length;
   }, [subIds]);
 
   // Post comment to ClickUp mutation
@@ -265,6 +269,35 @@ export default function Dashboard() {
       toast({
         title: "Post Failed",
         description: error.message || "Failed to post comment to ClickUp",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Bulk post comments mutation
+  const bulkPostCommentsMutation = useMutation({
+    mutationFn: async (websiteId: string) => {
+      const res = await apiRequest("POST", `/api/websites/${websiteId}/clickup/post-comments`);
+      return await res.json();
+    },
+    onSuccess: (data: { posted: number; skipped: number; checked: number; errors?: any[] }) => {
+      if (data.posted > 0) {
+        toast({
+          title: "Comments Posted",
+          description: `${data.posted} new comment${data.posted !== 1 ? 's' : ''} posted to ClickUp. ${data.skipped} already had comments.`,
+        });
+      } else {
+        toast({
+          title: "All Up to Date",
+          description: `Checked ${data.checked} task${data.checked !== 1 ? 's' : ''}. All already have Sub-ID comments.`,
+          variant: "default",
+        });
+      }
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Bulk Post Failed",
+        description: error.message || "Failed to post comments to ClickUp",
         variant: "destructive",
       });
     },
@@ -315,6 +348,11 @@ export default function Dashboard() {
 
   const handlePostComment = (id: string) => {
     postCommentMutation.mutate(id);
+  };
+
+  const handleBulkPostComments = () => {
+    if (!selectedWebsite) return;
+    bulkPostCommentsMutation.mutate(selectedWebsite.id);
   };
 
   const handleExportCSV = () => {
@@ -378,12 +416,15 @@ export default function Dashboard() {
                   formatPattern={selectedWebsite.formatPattern}
                   subIdCount={selectedWebsite.subIdCount}
                   missingUrlCount={missingUrlCount}
+                  linkedTaskCount={linkedTaskCount}
                   onGenerateId={handleGenerateId}
                   onDeleteWebsite={handleDeleteWebsite}
                   onBulkImport={() => setIsBulkImportOpen(true)}
                   onBulkClickUpImport={() => setIsBulkClickUpImportOpen(true)}
                   onRefreshUrls={handleRefreshUrls}
+                  onBulkPostComments={handleBulkPostComments}
                   isRefreshing={refreshUrlsMutation.isPending}
+                  isPostingComments={bulkPostCommentsMutation.isPending}
                 />
                 <SubIdTable
                   subIds={subIds}

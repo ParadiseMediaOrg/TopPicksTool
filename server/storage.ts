@@ -42,16 +42,7 @@ export class DbStorage implements IStorage {
   }
 
   async deleteWebsite(id: string): Promise<void> {
-    // Check if there are any immutable Sub-IDs for this website
-    const immutableSubIds = await db
-      .select()
-      .from(subIds)
-      .where(and(eq(subIds.websiteId, id), eq(subIds.isImmutable, true)));
-    
-    if (immutableSubIds.length > 0) {
-      throw new Error(`Cannot delete website: it contains ${immutableSubIds.length} immutable Sub-ID(s)`);
-    }
-    
+    // Immutability check temporarily disabled - user can delete any website
     await db.delete(websites).where(eq(websites.id, id));
   }
 
@@ -79,11 +70,7 @@ export class DbStorage implements IStorage {
   }
 
   async deleteSubId(id: string): Promise<void> {
-    // Check if the subId is immutable
-    const [subId] = await db.select().from(subIds).where(eq(subIds.id, id));
-    if (subId?.isImmutable) {
-      throw new Error("Cannot delete immutable Sub-ID");
-    }
+    // Immutability check temporarily disabled - user can delete any Sub-ID
     await db.delete(subIds).where(eq(subIds.id, id));
   }
 

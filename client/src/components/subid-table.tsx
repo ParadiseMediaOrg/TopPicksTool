@@ -1,4 +1,4 @@
-import { Copy, Check, Download, Lock, ExternalLink, Link2 } from "lucide-react";
+import { Copy, Check, Download, Lock, ExternalLink, Link2, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -18,11 +18,12 @@ interface SubIdTableProps {
   subIds: SubId[];
   onCopy: (value: string) => void;
   onExportCSV: () => void;
+  onDelete: (id: string) => void;
   duplicateSubIds: Set<string>;
   isLoading?: boolean;
 }
 
-export function SubIdTable({ subIds, onCopy, onExportCSV, duplicateSubIds, isLoading }: SubIdTableProps) {
+export function SubIdTable({ subIds, onCopy, onExportCSV, onDelete, duplicateSubIds, isLoading }: SubIdTableProps) {
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [selectedSubId, setSelectedSubId] = useState<SubId | null>(null);
   const [isClickUpDialogOpen, setIsClickUpDialogOpen] = useState(false);
@@ -155,18 +156,29 @@ export function SubIdTable({ subIds, onCopy, onExportCSV, duplicateSubIds, isLoa
                     {format(new Date(subId.timestamp), "MMM d, yyyy h:mm a")}
                   </TableCell>
                   <TableCell className="text-right">
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => handleCopy(subId.id, subId.value)}
-                      data-testid={`button-copy-${subId.id}`}
-                    >
-                      {copiedId === subId.id ? (
-                        <Check className="h-4 w-4 text-primary" />
-                      ) : (
-                        <Copy className="h-4 w-4" />
-                      )}
-                    </Button>
+                    <div className="flex items-center justify-end gap-1">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => handleCopy(subId.id, subId.value)}
+                        data-testid={`button-copy-${subId.id}`}
+                      >
+                        {copiedId === subId.id ? (
+                          <Check className="h-4 w-4 text-primary" />
+                        ) : (
+                          <Copy className="h-4 w-4" />
+                        )}
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => onDelete(subId.id)}
+                        data-testid={`button-delete-${subId.id}`}
+                        className="text-muted-foreground hover:text-destructive"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
                   </TableCell>
                 </TableRow>
               );

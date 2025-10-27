@@ -187,6 +187,30 @@ export default function Dashboard() {
     },
   });
 
+  // Delete Sub-ID mutation
+  const deleteSubIdMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const res = await apiRequest("DELETE", `/api/subids/${id}`);
+      return await res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/websites", selectedWebsiteId, "subids"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/websites"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/subids"] });
+      toast({
+        title: "Sub-ID Deleted",
+        description: "The Sub-ID has been removed.",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Cannot Delete",
+        description: error.message || "Failed to delete Sub-ID",
+        variant: "destructive",
+      });
+    },
+  });
+
   const handleAddWebsite = (data: { name: string; formatPattern: string }) => {
     createWebsiteMutation.mutate(data);
   };
@@ -202,19 +226,6 @@ export default function Dashboard() {
 
   const handleDeleteWebsite = () => {
     if (!selectedWebsite) return;
-    
-    // Check if there are immutable Sub-IDs
-    const hasImmutableSubIds = subIds.some((s) => s.isImmutable);
-    
-    if (hasImmutableSubIds) {
-      toast({
-        title: "Cannot Delete Website",
-        description: "This website contains immutable Sub-ID/URL pairs that cannot be deleted.",
-        variant: "destructive",
-      });
-      return;
-    }
-    
     deleteWebsiteMutation.mutate(selectedWebsite.id);
   };
 
@@ -232,6 +243,10 @@ export default function Dashboard() {
       title: "Copied!",
       description: `${value} copied to clipboard`,
     });
+  };
+
+  const handleDeleteSubId = (id: string) => {
+    deleteSubIdMutation.mutate(id);
   };
 
   const handleExportCSV = () => {
@@ -303,6 +318,7 @@ export default function Dashboard() {
                   subIds={subIds}
                   onCopy={handleCopy}
                   onExportCSV={handleExportCSV}
+                  onDelete={handleDeleteSubId}
                   duplicateSubIds={duplicateSubIds}
                   isLoading={isLoadingSubIds}
                 />

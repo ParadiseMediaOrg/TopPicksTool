@@ -107,10 +107,20 @@ export function SubIdTable({ subIds, onCopy, onExportCSV, duplicateSubIds, isLoa
               return (
                 <TableRow key={subId.id} className={isDuplicate ? "bg-destructive/10" : ""}>
                   <TableCell className={`font-mono font-medium ${isDuplicate ? "text-destructive" : ""}`}>
-                    <div className="flex items-center gap-2">
-                      {subId.value}
-                      {subId.isImmutable && (
-                        <Lock className="h-3 w-3 text-muted-foreground" />
+                    <div className="flex flex-col gap-1">
+                      <div className="flex items-center gap-2">
+                        {subId.value}
+                        {subId.isImmutable && (
+                          <Lock className="h-3 w-3 text-muted-foreground" />
+                        )}
+                      </div>
+                      {subId.clickupTaskId && (
+                        <div className="flex items-center gap-1">
+                          <Badge variant="outline" className="text-xs font-mono">
+                            <Link2 className="h-2.5 w-2.5 mr-1" />
+                            {subId.clickupTaskId}
+                          </Badge>
+                        </div>
                       )}
                     </div>
                   </TableCell>

@@ -7,7 +7,7 @@ import {
   subIds
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, desc } from "drizzle-orm";
+import { eq, desc, and } from "drizzle-orm";
 
 export interface IStorage {
   // Website methods
@@ -41,6 +41,16 @@ export class DbStorage implements IStorage {
   }
 
   async deleteWebsite(id: string): Promise<void> {
+    // Check if there are any immutable Sub-IDs for this website
+    const immutableSubIds = await db
+      .select()
+      .from(subIds)
+      .where(and(eq(subIds.websiteId, id), eq(subIds.isImmutable, true)));
+    
+    if (immutableSubIds.length > 0) {
+      throw new Error(`Cannot delete website: it contains ${immutableSubIds.length} immutable Sub-ID(s)`);
+    }
+    
     await db.delete(websites).where(eq(websites.id, id));
   }
 

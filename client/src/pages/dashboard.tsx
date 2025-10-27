@@ -200,6 +200,19 @@ export default function Dashboard() {
 
   const handleDeleteWebsite = () => {
     if (!selectedWebsite) return;
+    
+    // Check if there are immutable Sub-IDs
+    const hasImmutableSubIds = subIds.some((s) => s.isImmutable);
+    
+    if (hasImmutableSubIds) {
+      toast({
+        title: "Cannot Delete Website",
+        description: "This website contains immutable Sub-ID/URL pairs that cannot be deleted.",
+        variant: "destructive",
+      });
+      return;
+    }
+    
     deleteWebsiteMutation.mutate(selectedWebsite.id);
   };
 

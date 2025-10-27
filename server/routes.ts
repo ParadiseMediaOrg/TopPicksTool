@@ -39,8 +39,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       await storage.deleteWebsite(req.params.id);
       res.json({ success: true });
-    } catch (error) {
-      res.status(500).json({ error: "Failed to delete website" });
+    } catch (error: any) {
+      if (error.message?.includes("immutable Sub-ID")) {
+        res.status(403).json({ error: error.message });
+      } else {
+        console.error("Error deleting website:", error);
+        res.status(500).json({ error: "Failed to delete website" });
+      }
     }
   });
 
@@ -70,11 +75,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!Array.isArray(subIds)) {
         return res.status(400).json({ error: "subIds must be an array" });
       }
-      const validatedSubIds = subIds.map((subId) => insertSubIdSchema.parse(subId));
+      
+      // Validate and enforce immutability for bulk imports with URLs
+      const validatedSubIds = subIds.map((subId) => {
+        const validated = insertSubIdSchema.parse(subId);
+        
+        // Enforce immutability and URL presence for bulk imports
+        if (!validated.url) {
+          throw new Error("Bulk imports must include a URL for each Sub-ID");
+        }
+        
+        // Force isImmutable to true for URL-linked Sub-IDs (server-side enforcement)
+        return {
+          ...validated,
+          isImmutable: true,
+        };
+      });
+      
       const createdSubIds = await storage.createSubIdsBulk(validatedSubIds);
       res.json(createdSubIds);
-    } catch (error) {
-      res.status(400).json({ error: "Invalid bulk sub-ID data" });
+    } catch (error: any) {
+      console.error("Error in bulk import:", error);
+      res.status(400).json({ error: error.message || "Invalid bulk sub-ID data" });
     }
   });
 

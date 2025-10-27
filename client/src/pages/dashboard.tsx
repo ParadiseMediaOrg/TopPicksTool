@@ -7,6 +7,7 @@ import { AddWebsiteDialog } from "@/components/add-website-dialog";
 import { BulkImportDialog } from "@/components/bulk-import-dialog";
 import { BulkClickUpImportDialog } from "@/components/bulk-clickup-import-dialog";
 import { EmptyState } from "@/components/empty-state";
+import { WebsiteOverview } from "@/components/website-overview";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { useToast } from "@/hooks/use-toast";
@@ -441,6 +442,12 @@ export default function Dashboard() {
                   />
                 </div>
               </div>
+            ) : websites.length > 0 ? (
+              <WebsiteOverview
+                websites={websites}
+                onSelectWebsite={setSelectedWebsiteId}
+                onAddWebsite={() => setIsAddDialogOpen(true)}
+              />
             ) : (
               <EmptyState onAddWebsite={() => setIsAddDialogOpen(true)} />
             )}

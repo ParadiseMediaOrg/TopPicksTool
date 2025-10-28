@@ -474,29 +474,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
         // STAGE 2: Replace path-based tracking IDs
         // Only attempt if no query parameters were replaced
-        // Look for the exact task ID in the path segments
-        if (!wasReplaced && oldTaskId) {
+        if (!wasReplaced) {
           const pathSegments = urlObj.pathname.split('/').filter(Boolean);
-          let pathWasModified = false;
           
-          console.log(`   🔍 PATH-BASED CHECK: Looking for taskId "${oldTaskId}" in path segments:`, pathSegments);
+          // For path-based URLs, append the Sub-ID as the last segment before the trailing slash
+          // This handles URLs like: /click/15/4204/13991/1/ -> /click/15/4204/13991/1/SUB_ID/
+          // Or simply append if no trailing structure: /click/15/4204/13991/ -> /click/15/4204/13991/SUB_ID/
           
-          // Search for task ID in path segments
-          const updatedSegments = pathSegments.map(segment => {
-            if (segment === oldTaskId) {
-              console.log(`   ✅ FOUND taskId "${oldTaskId}" in path! Replacing with "${newValue}"`);
-              pathWasModified = true;
-              return newValue;
-            }
-            return segment;
-          });
-          
-          if (pathWasModified) {
-            const newUrl = urlObj.protocol + '//' + urlObj.host + '/' + updatedSegments.join('/') + (urlObj.pathname.endsWith('/') ? '/' : '');
-            console.log(`   ✅ PATH REPLACED: ${url} → ${newUrl}`);
+          if (pathSegments.length > 0) {
+            // Add sub-id as a new path segment at the end
+            pathSegments.push(newValue);
+            const newUrl = urlObj.protocol + '//' + urlObj.host + '/' + pathSegments.join('/') + '/';
+            console.log(`   ✅ PATH APPENDED: ${url} → ${newUrl}`);
             return newUrl;
-          } else {
-            console.log(`   ⚠️  Task ID "${oldTaskId}" NOT found in path segments`);
           }
         }
       } catch (e) {

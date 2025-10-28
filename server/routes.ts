@@ -1284,6 +1284,131 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Task Reconciliation: Cross-reference ClickUp tasks with featured brands and Sub-ID tracker
+  app.post("/api/reconcile-tasks", async (req, res) => {
+    try {
+      const { taskIds, geoId } = req.body;
+      
+      if (!Array.isArray(taskIds) || taskIds.length === 0) {
+        return res.status(400).json({ error: "taskIds must be a non-empty array" });
+      }
+      
+      if (!geoId) {
+        return res.status(400).json({ error: "geoId is required" });
+      }
+
+      const apiKey = process.env.CLICKUP_API_KEY;
+      
+      // Fetch all Sub-IDs to check for existing task IDs
+      const allSubIds = await storage.getAllSubIds();
+      const subIdsByTaskId = new Map(
+        allSubIds
+          .filter((s: any) => s.clickupTaskId)
+          .map((s: any) => [s.clickupTaskId!, s])
+      );
+
+      // Fetch all websites to map task names to websites
+      const websites = await storage.getWebsites();
+      
+      // Fetch featured brands for this GEO
+      const rankings = await storage.getRankingsByGeo(geoId);
+      const featuredRankings = rankings
+        .filter(r => r.position !== null && r.position >= 1 && r.position <= 10)
+        .sort((a, b) => (a.position || 0) - (b.position || 0));
+      
+      // Fetch brands to get brand names
+      const brands = await storage.getBrands();
+      const brandsById = new Map(brands.map(b => [b.id, b]));
+
+      const results = await Promise.all(
+        taskIds.map(async (taskId: string) => {
+          const result: any = {
+            taskId,
+            websiteName: null,
+            websiteId: null,
+            brandMatch: null,
+            subIdExists: false,
+            subIdValue: null,
+          };
+
+          // Check if Sub-ID already exists for this task
+          const existingSubId: any = subIdsByTaskId.get(taskId);
+          if (existingSubId) {
+            result.subIdExists = true;
+            result.subIdValue = existingSubId.value;
+            
+            // Find the website for this Sub-ID
+            const website = websites.find(w => w.id === existingSubId.websiteId);
+            if (website) {
+              result.websiteName = website.name;
+              result.websiteId = website.id;
+            }
+          }
+
+          // Fetch ClickUp task to get website info
+          if (apiKey) {
+            try {
+              const response = await fetch(`https://api.clickup.com/api/v2/task/${taskId.trim()}`, {
+                headers: {
+                  'Authorization': apiKey,
+                  'Content-Type': 'application/json',
+                },
+              });
+
+              if (response.ok) {
+                const taskData = await response.json();
+                
+                // Try to determine website from task name
+                // Task name format is usually like "Website Name - Description"
+                const taskName = taskData.name || '';
+                
+                // Try to match task name with website names
+                const matchedWebsite = websites.find(w => 
+                  taskName.toLowerCase().includes(w.name.toLowerCase())
+                );
+                
+                if (matchedWebsite && !result.websiteName) {
+                  result.websiteName = matchedWebsite.name;
+                  result.websiteId = matchedWebsite.id;
+                }
+
+                // Try to match against featured brands
+                // Look for brand names in task name or description
+                for (const ranking of featuredRankings) {
+                  const brand = brandsById.get(ranking.brandId);
+                  if (brand) {
+                    const brandNameLower = brand.name.toLowerCase();
+                    const taskNameLower = taskName.toLowerCase();
+                    const taskDescLower = (taskData.description || '').toLowerCase();
+                    
+                    if (taskNameLower.includes(brandNameLower) || taskDescLower.includes(brandNameLower)) {
+                      result.brandMatch = {
+                        position: ranking.position,
+                        brandName: brand.name,
+                      };
+                      break; // Use first match
+                    }
+                  }
+                }
+              } else {
+                result.error = `ClickUp API: ${response.statusText}`;
+              }
+            } catch (error: any) {
+              result.error = error.message || "Failed to fetch ClickUp task";
+            }
+          }
+
+          return result;
+        })
+      );
+
+      res.json({ results });
+    } catch (error: any) {
+      console.error("Error reconciling tasks:", error);
+      res.status(500).json({ error: error.message || "Failed to reconcile tasks" });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }

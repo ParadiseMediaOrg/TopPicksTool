@@ -1151,6 +1151,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.post("/api/geos/reorder", async (req, res) => {
+    try {
+      const { geoIds } = req.body;
+      if (!Array.isArray(geoIds)) {
+        return res.status(400).json({ error: "geoIds must be an array" });
+      }
+      
+      // Update sortOrder for each GEO
+      for (let i = 0; i < geoIds.length; i++) {
+        await storage.updateGeo(geoIds[i], { sortOrder: i });
+      }
+      
+      res.json({ success: true });
+    } catch (error: any) {
+      console.error("Error reordering GEOs:", error);
+      res.status(500).json({ error: error.message || "Failed to reorder GEOs" });
+    }
+  });
+
   // Brand routes
   app.get("/api/brands", async (req, res) => {
     try {

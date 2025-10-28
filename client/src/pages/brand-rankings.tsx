@@ -1,7 +1,24 @@
 import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Link } from "wouter";
-import { Plus, Edit2, Trash2, Save, X, Home } from "lucide-react";
+import { Plus, Edit2, Trash2, Save, X, Home, GripVertical } from "lucide-react";
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  DragEndEvent,
+} from '@dnd-kit/core';
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  useSortable,
+  verticalListSortingStrategy,
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -41,6 +58,86 @@ interface RankingWithBrand extends GeoBrandRanking {
   brand?: Brand;
 }
 
+// Sortable GEO Item Component
+function SortableGeoItem({
+  geo,
+  isSelected,
+  onSelect,
+  onEdit,
+  onDelete,
+}: {
+  geo: Geo;
+  isSelected: boolean;
+  onSelect: () => void;
+  onEdit: () => void;
+  onDelete: () => void;
+}) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: geo.id });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+  };
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      className={`flex items-center gap-2 p-3 rounded-md cursor-pointer hover-elevate ${
+        isSelected ? "bg-accent" : ""
+      }`}
+      data-testid={`geo-item-${geo.id}`}
+    >
+      <div
+        {...attributes}
+        {...listeners}
+        className="cursor-grab active:cursor-grabbing"
+        data-testid={`geo-drag-handle-${geo.id}`}
+      >
+        <GripVertical className="h-4 w-4 text-muted-foreground" />
+      </div>
+      <div className="flex-1 min-w-0" onClick={onSelect}>
+        <div className="font-medium text-sm truncate">{geo.name}</div>
+        <div className="text-xs text-muted-foreground font-mono">{geo.code}</div>
+      </div>
+      <div className="flex gap-1">
+        <Button
+          size="icon"
+          variant="ghost"
+          className="h-7 w-7"
+          onClick={(e) => {
+            e.stopPropagation();
+            onEdit();
+          }}
+          data-testid={`button-edit-geo-${geo.id}`}
+        >
+          <Edit2 className="h-3 w-3" />
+        </Button>
+        <Button
+          size="icon"
+          variant="ghost"
+          className="h-7 w-7"
+          onClick={(e) => {
+            e.stopPropagation();
+            onDelete();
+          }}
+          data-testid={`button-delete-geo-${geo.id}`}
+        >
+          <Trash2 className="h-3 w-3" />
+        </Button>
+      </div>
+    </div>
+  );
+}
+
 export default function BrandRankings() {
   const { toast } = useToast();
   const [selectedGeoId, setSelectedGeoId] = useState<string | null>(null);
@@ -52,6 +149,14 @@ export default function BrandRankings() {
   const [isEditMode, setIsEditMode] = useState(false);
   const [geoSearchQuery, setGeoSearchQuery] = useState("");
   const [brandSearchQuery, setBrandSearchQuery] = useState("");
+
+  // Drag and drop sensors
+  const sensors = useSensors(
+    useSensor(PointerSensor),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
 
   // Fetch GEOs
   const { data: geos = [], isLoading: isLoadingGeos } = useQuery<Geo[]>({
@@ -232,6 +337,24 @@ export default function BrandRankings() {
     },
   });
 
+  // Reorder GEOs mutation
+  const reorderGeosMutation = useMutation({
+    mutationFn: async (geoIds: string[]) => {
+      const res = await apiRequest("POST", "/api/geos/reorder", { geoIds });
+      return await res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/geos"] });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to reorder GEOs",
+        variant: "destructive",
+      });
+    },
+  });
+
   // Bulk upsert rankings mutation
   const bulkUpsertRankingsMutation = useMutation({
     mutationFn: async ({ geoId, rankings }: { geoId: string; rankings: any[] }) => {
@@ -311,6 +434,22 @@ export default function BrandRankings() {
     setEditingRankings(new Map(editingRankings.set(position, updated)));
   };
 
+  // Handle drag end for GEOs
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+
+    if (over && active.id !== over.id) {
+      const oldIndex = filteredGeos.findIndex((g) => g.id === active.id);
+      const newIndex = filteredGeos.findIndex((g) => g.id === over.id);
+
+      const reorderedGeos = arrayMove(filteredGeos, oldIndex, newIndex);
+      const allGeoIds = reorderedGeos.map((g) => g.id);
+
+      // Update the order in the backend
+      reorderGeosMutation.mutate(allGeoIds);
+    }
+  };
+
   // Sidebar width
   const sidebarStyle = {
     "--sidebar-width": "16rem",
@@ -352,50 +491,34 @@ export default function BrandRankings() {
                       No GEOs yet. Add your first GEO below.
                     </div>
                   ) : (
-                    filteredGeos.map((geo) => (
-                      <div
-                        key={geo.id}
-                        className={`flex items-center justify-between p-3 rounded-md cursor-pointer hover-elevate ${
-                          selectedGeoId === geo.id ? "bg-accent" : ""
-                        }`}
-                        onClick={() => setSelectedGeoId(geo.id)}
-                        data-testid={`geo-item-${geo.id}`}
+                    <DndContext
+                      sensors={sensors}
+                      collisionDetection={closestCenter}
+                      onDragEnd={handleDragEnd}
+                    >
+                      <SortableContext
+                        items={filteredGeos.map((g) => g.id)}
+                        strategy={verticalListSortingStrategy}
                       >
-                        <div className="flex-1 min-w-0">
-                          <div className="font-medium text-sm truncate">{geo.name}</div>
-                          <div className="text-xs text-muted-foreground font-mono">{geo.code}</div>
-                        </div>
-                        <div className="flex gap-1">
-                          <Button
-                            size="icon"
-                            variant="ghost"
-                            className="h-7 w-7"
-                            onClick={(e) => {
-                              e.stopPropagation();
+                        {filteredGeos.map((geo) => (
+                          <SortableGeoItem
+                            key={geo.id}
+                            geo={geo}
+                            isSelected={selectedGeoId === geo.id}
+                            onSelect={() => setSelectedGeoId(geo.id)}
+                            onEdit={() => {
                               setEditingGeo(geo);
                               setIsGeoDialogOpen(true);
                             }}
-                            data-testid={`button-edit-geo-${geo.id}`}
-                          >
-                            <Edit2 className="h-3 w-3" />
-                          </Button>
-                          <Button
-                            size="icon"
-                            variant="ghost"
-                            className="h-7 w-7"
-                            onClick={(e) => {
-                              e.stopPropagation();
+                            onDelete={() => {
                               if (confirm(`Delete ${geo.name}?`)) {
                                 deleteGeoMutation.mutate(geo.id);
                               }
                             }}
-                            data-testid={`button-delete-geo-${geo.id}`}
-                          >
-                            <Trash2 className="h-3 w-3" />
-                          </Button>
-                        </div>
-                      </div>
-                    ))
+                          />
+                        ))}
+                      </SortableContext>
+                    </DndContext>
                   )}
                 </div>
               </ScrollArea>

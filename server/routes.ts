@@ -878,42 +878,63 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const topPicksSection = topPicksMatch[0];
         console.log(`   🥇 Found TOP PICKS LINEUP section (${topPicksSection.length} chars)`);
         
-        // Extract all URLs from the section
-        const urlRegex = /https?:\/\/[^\s<>"'`|)]+/gi;
-        const allUrls = topPicksSection.match(urlRegex) || [];
-        
-        console.log(`   🔍 Found ${allUrls.length} total URL(s) in TOP PICKS section`);
-        
-        // Filter out the cloaked links (pokerology.com) - we only want the tracking links
-        // The pattern is: each row has 2 URLs - first is cloaked (pokerology.com), second is tracking link
+        // Extract all URLs from the section - improved to handle URLs with spaces/line breaks
+        // Split by lines to process each table row
+        const lines = topPicksSection.split('\n');
         const trackingLinks: string[] = [];
         
-        for (let i = 0; i < allUrls.length; i++) {
-          let url = allUrls[i].trim();
+        for (const line of lines) {
+          // Skip empty lines and header rows
+          if (!line.trim() || line.includes('---') || line.toLowerCase().includes('brand name')) {
+            continue;
+          }
+          
+          // If this line contains a URL, extract it
+          const urlMatch = line.match(/https?:\/\/[^\s<>"'`|]+/);
+          if (!urlMatch) continue;
+          
+          let url = urlMatch[0];
+          
           // Skip pokerology.com URLs (these are cloaked links)
           if (url.includes('pokerology.com')) {
             console.log(`   ⏭️  Skipping cloaked link: ${url.substring(0, 60)}...`);
             continue;
           }
           
-          // Handle case where URL ends with "=" (incomplete parameter value with space after)
-          // e.g., "https://example.com/?clickid=" should grab the value after the space
-          if (url.endsWith('=')) {
-            // Find this URL in the text and look for the value after it
-            const urlIndex = topPicksSection.indexOf(url);
-            if (urlIndex !== -1) {
-              const afterUrl = topPicksSection.substring(urlIndex + url.length);
-              // Match the task ID that follows (might have a space before it)
-              const valueMatch = afterUrl.match(/^\s*([a-zA-Z0-9]+)/);
-              if (valueMatch) {
-                url = url + valueMatch[1];
+          // Find where this URL appears in the line
+          const urlIndex = line.indexOf(url);
+          if (urlIndex !== -1) {
+            // Get everything after the initial URL match (might contain more params separated by spaces)
+            const afterUrl = line.substring(urlIndex + url.length);
+            
+            // Look for continuation: parameter names followed by = (across spaces)
+            // Match patterns like: " &param=value" or " param=value" or "=value"
+            const continuationMatch = afterUrl.match(/^([^|]*?)(?=\s*\||$)/);
+            if (continuationMatch) {
+              const continuation = continuationMatch[1].trim();
+              
+              // If it starts with = or contains parameter patterns, append it
+              if (continuation && (
+                continuation.startsWith('=') ||
+                continuation.match(/^[&\s]*[a-zA-Z_]+=/) ||
+                // Handle case where parameters are separated by spaces in table
+                continuation.match(/^[a-zA-Z0-9_-]+(?=[&=\s]|$)/)
+              )) {
+                // Clean up the continuation - remove extra spaces between params
+                const cleanedContinuation = continuation.replace(/\s+&/g, '&').replace(/\s+=/g, '=');
+                url = url + cleanedContinuation;
               }
             }
           }
           
-          // This is a tracking link
+          // Final cleanup: ensure proper URL format
+          // Fix missing ? before first parameter
+          if (url.match(/https?:\/\/[^?]+[a-zA-Z0-9_-]+=/) && !url.includes('?')) {
+            url = url.replace(/([a-zA-Z0-9_-]+=)/, '?$1');
+          }
+          
           trackingLinks.push(url);
-          console.log(`   ✅ Tracking link ${trackingLinks.length}: ${url.substring(0, 60)}...`);
+          console.log(`   ✅ Tracking link ${trackingLinks.length}: ${url.substring(0, 80)}...`);
         }
         
         // Convert to the expected format with source task ID

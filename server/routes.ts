@@ -938,14 +938,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
           // If URL ends with "=" and there's nothing after it, check the next line
           if (url.endsWith('=') && !restOfCell.trim() && i + 1 < lines.length) {
             const nextLine = lines[i + 1];
+            
+            if (trackingLinks.length === 0) {
+              console.log(`      Checking next line...`);
+              console.log(`      Next line: ${JSON.stringify(nextLine)}`);
+              console.log(`      Has http: ${nextLine && nextLine.includes('http')}`);
+              console.log(`      Has ---: ${nextLine && nextLine.includes('---')}`);
+              console.log(`      Is truthy: ${!!nextLine}`);
+              console.log(`      Trimmed: ${nextLine && nextLine.trim()}`);
+            }
+            
             // Check if next line has the value (not a URL, not a separator)
             if (nextLine && !nextLine.includes('http') && !nextLine.includes('---') && nextLine.trim()) {
               const nextValue = nextLine.split('|')[0].trim();
+              
+              if (trackingLinks.length === 0) {
+                console.log(`      Next value extracted: "${nextValue}"`);
+                console.log(`      Matches pattern: ${nextValue.match(/^[a-zA-Z0-9_-]+$/)}`);
+              }
+              
               // If it looks like a parameter value, append it
               if (nextValue.match(/^[a-zA-Z0-9_-]+$/)) {
                 url = url + nextValue;
                 if (trackingLinks.length === 0) {
-                  console.log(`      Found value on next line: "${nextValue}" → ${url}`);
+                  console.log(`      ✅ Found value on next line: "${nextValue}" → ${url}`);
                 }
                 // Skip the next line since we consumed it
                 i++;

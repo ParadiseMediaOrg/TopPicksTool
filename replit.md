@@ -2,12 +2,16 @@
 
 ## Overview
 
-A web-based application for managing unique tracking codes (Sub-IDs) across multiple websites and brand rankings by geographic region. The system includes two main modules:
+A web-based application for managing unique tracking codes (Sub-IDs) across multiple websites and brand rankings by geographic region. The system includes three main modules:
 
 1. **Sub-ID Tracker**: Manages unique tracking codes across multiple websites with customizable format patterns, ClickUp CMS integration, and affiliate link management
 2. **Brand Rankings**: Maintains brand lists per geographic region (GEO):
    - **Featured Brands**: Top 10 ranked brands (positions 1-10) with affiliate link tracking
    - **Other Brands**: Unlimited non-featured brands per GEO for organization and tracking
+3. **Task Reconciliation**: Cross-references ClickUp task IDs against brand rankings and Sub-ID tracker to identify:
+   - Website associations (matched from task names)
+   - Featured brand matches (positions 1-10) for selected GEO
+   - Existing Sub-IDs linked to task IDs
 
 ## User Preferences
 
@@ -172,3 +176,31 @@ Preferred communication style: Simple, everyday language.
 - Bulk comment feature to post tables for all Sub-IDs with ClickUp tasks
 - Comment buttons remain unlocked to allow reposting/updates
 - Duplicate detection prevents posting same Sub-ID multiple times to same task
+
+### Task Reconciliation Module
+
+**Purpose**: Batch analysis tool for ClickUp tasks to identify relationships with websites, brands, and Sub-IDs
+
+**Workflow**:
+1. User pastes ClickUp task IDs (one per line or comma-separated)
+2. Selects target GEO for brand matching
+3. System analyzes each task:
+   - Fetches task details from ClickUp API
+   - Matches task name against website names in Sub-ID tracker
+   - Searches task name/description for featured brand names (top 10 for selected GEO)
+   - Checks if Sub-ID already exists for the task ID
+
+**Results Display**:
+- Task ID with website association (if detected)
+- Brand match showing position and name (if found in top 10)
+- Sub-ID status (exists/not found)
+- Sub-ID value (if already created)
+- Error messages for ClickUp API failures
+
+**Data Sources**:
+- ClickUp API for task metadata
+- Sub-ID Tracker database for existing task-to-Sub-ID mappings and website names
+- Brand Rankings database for featured brands per GEO
+- Global Brands table for brand name matching
+
+**Navigation**: Accessible from dashboard header via "Task Reconciliation" button

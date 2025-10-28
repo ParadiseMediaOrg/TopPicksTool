@@ -150,6 +150,7 @@ export default function BrandRankings() {
   const [isEditMode, setIsEditMode] = useState(false);
   const [geoSearchQuery, setGeoSearchQuery] = useState("");
   const [brandSearchQuery, setBrandSearchQuery] = useState("");
+  const [editBrandSearchQuery, setEditBrandSearchQuery] = useState("");
 
   // Drag and drop sensors
   const sensors = useSensors(
@@ -738,11 +739,35 @@ export default function BrandRankings() {
                                         <SelectValue placeholder="Select brand..." />
                                       </SelectTrigger>
                                       <SelectContent data-testid={`select-brand-content-${position}`}>
-                                        {brands.map((brand) => (
-                                          <SelectItem key={brand.id} value={brand.id} data-testid={`select-brand-item-${brand.id}-${position}`}>
-                                            {brand.name}
-                                          </SelectItem>
-                                        ))}
+                                        <div className="p-2 border-b">
+                                          <Input
+                                            placeholder="Search brands..."
+                                            value={editBrandSearchQuery}
+                                            onChange={(e) => setEditBrandSearchQuery(e.target.value)}
+                                            className="h-8"
+                                            data-testid={`input-brand-search-${position}`}
+                                            onClick={(e) => e.stopPropagation()}
+                                            onKeyDown={(e) => e.stopPropagation()}
+                                          />
+                                        </div>
+                                        <div className="max-h-[300px] overflow-y-auto">
+                                          {brands
+                                            .filter((brand) => 
+                                              brand.name.toLowerCase().includes(editBrandSearchQuery.toLowerCase())
+                                            )
+                                            .map((brand) => (
+                                              <SelectItem key={brand.id} value={brand.id} data-testid={`select-brand-item-${brand.id}-${position}`}>
+                                                {brand.name}
+                                              </SelectItem>
+                                            ))}
+                                          {brands.filter((brand) => 
+                                            brand.name.toLowerCase().includes(editBrandSearchQuery.toLowerCase())
+                                          ).length === 0 && (
+                                            <div className="p-2 text-sm text-muted-foreground text-center">
+                                              No brands found
+                                            </div>
+                                          )}
+                                        </div>
                                       </SelectContent>
                                     </Select>
                                   </TableCell>

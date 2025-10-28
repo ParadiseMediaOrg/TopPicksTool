@@ -423,12 +423,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
       url = decodeHtmlEntities(url);
       
       const trackingParams = [
+        // Core tracking parameters
         'payload', 'subid', 'sub_id', 'clickid', 'click_id', 'clickID',
-        'campaign', 'campaign_id', 'affid', 'aff_id',
+        'campaign', 'campaign_id', 'affid', 'aff_id', 'affiliate_id',
         'tracking', 'tracker', 'ref', 'reference', 'source',
         'utm_campaign', 'utm_source', 'utm_medium', 'utm_term', 'utm_content',
         'pid', 'aid', 'sid', 'cid', 'tid', 'btag', 'tag', 'var',
-        'raw', 'nci', 'nkw', 'lpid', 'bid', 'b', 'a', 's', 'dyn_id'
+        'raw', 'nci', 'nkw', 'lpid', 'bid', 'b', 'a', 's', 'dyn_id',
+        // Extended affiliate parameters
+        'partner_id', 'offer_id', 'creative_id', 'ad_id', 'aff_click_id',
+        'transaction_id', 'payout', 'status', 'currency', 'event_type',
+        'subid1', 'subid2', 'subid3', 'subid4', 'subid5',
+        'aff_sub', 'aff_sub2', 'aff_sub3', 'aff_sub4', 'aff_sub5',
+        'geo', 'country', 'lang', 'locale', 'device', 'os', 'browser', 'platform',
+        'page_id', 'article_id', 'placement_id', 'cta_pos', 'test_variant', 'a_b_group',
+        'traffic_source', 'ref_site', 'session_id', 'ref_url', 'campaign_hash',
+        'content_id', 'site_id', 'user_id', 'timestamp', 'uuid',
+        'adv1', 'adv2', 'a_aid', 'data1', 'data2', 'data3'
       ];
 
       let wasReplaced = false;

@@ -138,17 +138,20 @@ Preferred communication style: Simple, everyday language.
 - Wide dropdown (800px) with custom orange scrollbar matching brand colors
 
 **Comment Posting with TOP PICKS LINEUP Table**
-- Posts entire 🥇 TOP PICKS LINEUP table as ClickUp comment
+- Posts entire 🥇 TOP PICKS LINEUP table as ClickUp comment using structured JSON format
 - Replaces ClickUp task ID with Sub-ID in all tracking URLs
-- Supports 35+ tracking parameters with case-sensitive matching:
-  - `payload`, `subid`, `sub_id`, `clickid`, `click_id`, `clickID`
-  - `campaign`, `campaign_id`, `affid`, `aff_id`
-  - `tracking`, `tracker`, `ref`, `reference`, `source`
-  - `utm_campaign`, `utm_source`, `utm_medium`, `utm_term`, `utm_content`
-  - `pid`, `aid`, `sid`, `cid`, `tid`, `btag`, `tag`, `var`
-  - `raw`, `nci`, `nkw`, `lpid`, `bid`
+- Supports 70+ tracking parameters with case-sensitive matching:
+  - Core: `payload`, `subid`, `sub_id`, `clickid`, `click_id`, `clickID`
+  - Campaign: `campaign`, `campaign_id`, `affid`, `aff_id`, `affiliate_id`
+  - Tracking: `tracking`, `tracker`, `ref`, `reference`, `source`
+  - UTM: `utm_campaign`, `utm_source`, `utm_medium`, `utm_term`, `utm_content`
+  - IDs: `pid`, `aid`, `sid`, `cid`, `tid`, `btag`, `tag`, `var`
+  - Advanced: `partner_id`, `offer_id`, `creative_id`, `ad_id`, `transaction_id`
+  - Sub-IDs: `subid1-5`, `aff_sub`, `aff_sub2-5`, `data1-3`, `adv1-2`
+  - Context: `geo`, `country`, `lang`, `device`, `os`, `browser`, `platform`
+  - And many more (see server/routes.ts for complete list)
 - Removes cloaked links (pokerology.com URLs) from table
-- Wraps table in code block (triple backticks) to preserve markdown formatting in ClickUp
+- Uses ClickUp's structured JSON format with code blocks for proper formatting
 - Individual comment button (💬 icon) for single Sub-ID posting
 - Bulk comment feature to post tables for all Sub-IDs with ClickUp tasks
 - Comment buttons remain unlocked to allow reposting/updates

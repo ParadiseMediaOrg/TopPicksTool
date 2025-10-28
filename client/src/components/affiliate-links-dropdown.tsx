@@ -16,12 +16,19 @@ interface AffiliateLinkDropdownProps {
   subIdValue: string;
 }
 
-// Common affiliate tracking parameter names
+// Common affiliate tracking parameter names (comprehensive list)
 const affiliateParams = [
-  'payload', 'subid', 'sub_id', 'clickid', 'click_id', 
-  'affid', 'aff_id', 'campaign', 'campaign_id', 'tracking',
-  'tracker', 'ref', 'reference', 'source', 'utm_campaign',
-  'pid', 'aid', 'sid', 'cid', 'tid', 'btag', 'tag', 'var'
+  // Primary tracking params
+  'payload', 'subid', 'sub_id', 'clickid', 'click_id', 'clickID',
+  // Campaign params
+  'campaign', 'campaign_id', 'affid', 'aff_id',
+  // Additional tracking params
+  'tracking', 'tracker', 'ref', 'reference', 'source',
+  // UTM params
+  'utm_campaign', 'utm_source', 'utm_medium', 'utm_term', 'utm_content',
+  // Miscellaneous
+  'pid', 'aid', 'sid', 'cid', 'tid', 'btag', 'tag', 'var',
+  'raw', 'nci', 'nkw', 'lpid', 'bid'
 ];
 
 function findTrackingParam(url: string): { param: string; value: string } | null {
@@ -29,18 +36,36 @@ function findTrackingParam(url: string): { param: string; value: string } | null
   
   try {
     const urlObj = new URL(url);
+    
+    // First pass: exact case-sensitive match
     for (const param of affiliateParams) {
       const value = urlObj.searchParams.get(param);
       if (value) {
         return { param, value };
       }
     }
+    
+    // Second pass: case-insensitive match for params like clickID vs clickid
+    const allParams = Array.from(urlObj.searchParams.keys());
+    for (const actualParam of allParams) {
+      for (const knownParam of affiliateParams) {
+        if (actualParam.toLowerCase() === knownParam.toLowerCase()) {
+          const value = urlObj.searchParams.get(actualParam);
+          if (value) {
+            return { param: actualParam, value };
+          }
+        }
+      }
+    }
   } catch (e) {
-    // Fallback for malformed URLs - use regex
+    // Fallback for malformed URLs - use regex with case-insensitive matching
     for (const param of affiliateParams) {
       const match = url.match(new RegExp(`${param}=([^&\\s]+)`, 'i'));
       if (match) {
-        return { param, value: match[1] };
+        // Extract the actual parameter name from the URL to preserve case
+        const actualParamMatch = url.match(new RegExp(`(${param})=`, 'i'));
+        const actualParam = actualParamMatch ? actualParamMatch[1] : param;
+        return { param: actualParam, value: match[1] };
       }
     }
   }

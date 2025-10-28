@@ -664,11 +664,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         comments = commentsData.comments || [];
       }
 
-      // Helper function to extract URLs from "Tracking Link with ClickUp task ID" column
-      const extractUrlsFromTrackingColumn = (text: string): string[] => {
+      // Helper function to extract URLs with brand info from "Tracking Link with ClickUp task ID" column
+      const extractUrlsFromTrackingColumn = (text: string): Array<{url: string, brand: string, position: string}> => {
         if (!text) return [];
         
-        const foundUrls: string[] = [];
+        const foundLinks: Array<{url: string, brand: string, position: string}> = [];
         
         // Look for "🥇 TOP PICKS LINEUP" section
         const topPicksMatch = text.match(/🥇\s*TOP PICKS LINEUP[\s\S]*?(?=\n#{1,3}\s|\n---|\Z)/i);
@@ -681,6 +681,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         // Strategy 1: Parse markdown tables with "Tracking Link with ClickUp task ID" column
         const lines = textToSearch.split('\n');
         let trackingColumnIndex = -1;
+        let brandColumnIndex = -1;
+        let positionColumnIndex = -1;
         let inTable = false;
         
         for (let i = 0; i < lines.length; i++) {
@@ -690,23 +692,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
           if (line.includes('|') && line.toLowerCase().includes('tracking link')) {
             const headers = line.split('|').map(h => h.trim());
             
-            // Find the exact column: "Tracking Link with ClickUp task ID"
+            // Find the tracking column
             trackingColumnIndex = headers.findIndex(h => {
               const lowerH = h.toLowerCase();
               return lowerH.includes('tracking link') && lowerH.includes('clickup');
             });
             
             if (trackingColumnIndex === -1) {
-              // Fallback: just look for "tracking link"
               trackingColumnIndex = headers.findIndex(h => 
                 h.toLowerCase().includes('tracking link')
               );
             }
             
+            // Find the brand column
+            brandColumnIndex = headers.findIndex(h => 
+              h.toLowerCase().includes('brand')
+            );
+            
+            // Find the position column
+            positionColumnIndex = headers.findIndex(h => 
+              h.toLowerCase().includes('position')
+            );
+            
             if (trackingColumnIndex >= 0) {
               inTable = true;
               console.log(`   📊 Found "Tracking Link with ClickUp task ID" column at index ${trackingColumnIndex}`);
-              console.log(`   📋 Column header: "${headers[trackingColumnIndex]}"`);
+              console.log(`   🏷️  Found "Brand" column at index ${brandColumnIndex}`);
+              console.log(`   #️⃣  Found "Position" column at index ${positionColumnIndex}`);
             }
             continue;
           }
@@ -720,13 +732,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
             if (cells.length > trackingColumnIndex) {
               const cellContent = cells[trackingColumnIndex];
               
-              // Extract ALL URLs from this cell (not just those with tracking params)
+              // Extract ALL URLs from this cell
               const urlRegex = /https?:\/\/[^\s<>"'`|]+/gi;
               const urls = cellContent.match(urlRegex) || [];
               
               if (urls.length > 0) {
-                console.log(`   ✅ Extracted ${urls.length} URL(s) from row ${i}`);
-                foundUrls.push(...urls);
+                const brand = brandColumnIndex >= 0 && cells[brandColumnIndex] ? cells[brandColumnIndex] : '';
+                const position = positionColumnIndex >= 0 && cells[positionColumnIndex] ? cells[positionColumnIndex] : '';
+                
+                for (const url of urls) {
+                  foundLinks.push({ url, brand, position });
+                }
+                
+                console.log(`   ✅ Extracted ${urls.length} URL(s) from row ${i} - Brand: "${brand}", Position: "${position}"`);
               }
             }
           }
@@ -751,7 +769,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             headers.push(headerText);
           }
           
-          // Find "Tracking Link with ClickUp task ID" column
+          // Find columns
           let trackingColIdx = headers.findIndex(h => {
             const lowerH = h.toLowerCase();
             return lowerH.includes('tracking link') && lowerH.includes('clickup');
@@ -762,6 +780,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
               h.toLowerCase().includes('tracking link')
             );
           }
+          
+          const brandColIdx = headers.findIndex(h => h.toLowerCase().includes('brand'));
+          const positionColIdx = headers.findIndex(h => h.toLowerCase().includes('position'));
           
           if (trackingColIdx >= 0) {
             console.log(`   📊 Found HTML table with tracking column at index ${trackingColIdx}`);
@@ -782,13 +803,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
               if (cells.length > trackingColIdx) {
                 const urlRegex = /https?:\/\/[^\s<>"']+/gi;
                 const urls = cells[trackingColIdx].match(urlRegex) || [];
-                foundUrls.push(...urls);
+                const brand = brandColIdx >= 0 && cells[brandColIdx] ? cells[brandColIdx].replace(/<[^>]+>/g, '').trim() : '';
+                const position = positionColIdx >= 0 && cells[positionColIdx] ? cells[positionColIdx].replace(/<[^>]+>/g, '').trim() : '';
+                
+                for (const url of urls) {
+                  foundLinks.push({ url, brand, position });
+                }
               }
             }
           }
         }
         
-        return foundUrls;
+        return foundLinks;
       };
 
       // Helper function to extract URLs from text with multiple strategies
@@ -798,8 +824,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const foundUrls: string[] = [];
         
         // First, try targeted extraction from "Tracking Link with ClickUp task ID" column
-        const trackingUrls = extractUrlsFromTrackingColumn(text);
-        foundUrls.push(...trackingUrls);
+        const trackingLinksWithInfo = extractUrlsFromTrackingColumn(text);
+        foundUrls.push(...trackingLinksWithInfo.map(link => link.url));
         
         // Strategy 1: Standard URL regex (catches most http/https URLs)
         const standardUrlRegex = /https?:\/\/[^\s<>"'`()[\]{}|]+/gi;
@@ -878,8 +904,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
 
-      // Extract all URLs from all sources
-      const affiliateLinks: string[] = [];
+      // Extract all URLs with brand info from all sources
+      const affiliateLinksWithInfo: Array<{url: string, brand: string, position: string}> = [];
       
       // Common affiliate tracking parameter names
       const affiliateParams = [
@@ -890,23 +916,51 @@ export async function registerRoutes(app: Express): Promise<Server> {
       ];
       
       for (const text of textSources) {
-        const urls = extractUrls(text);
-        for (const url of urls) {
-          const cleanedUrl = cleanUrl(url);
-          
-          // Include URL if it has ANY affiliate tracking parameter
-          const hasAffiliateParam = affiliateParams.some(param => 
-            cleanedUrl.toLowerCase().includes(`${param}=`)
-          );
-          
-          if (hasAffiliateParam) {
-            affiliateLinks.push(cleanedUrl);
+        const linksWithInfo = extractUrlsFromTrackingColumn(text);
+        
+        // If we got structured data from table extraction, use it
+        if (linksWithInfo.length > 0) {
+          for (const linkInfo of linksWithInfo) {
+            const cleanedUrl = cleanUrl(linkInfo.url);
+            const hasAffiliateParam = affiliateParams.some(param => 
+              cleanedUrl.toLowerCase().includes(`${param}=`)
+            );
+            
+            if (hasAffiliateParam) {
+              affiliateLinksWithInfo.push({
+                url: cleanedUrl,
+                brand: linkInfo.brand,
+                position: linkInfo.position
+              });
+            }
+          }
+        } else {
+          // Fallback: extract URLs without brand info
+          const urls = extractUrls(text);
+          for (const url of urls) {
+            const cleanedUrl = cleanUrl(url);
+            const hasAffiliateParam = affiliateParams.some(param => 
+              cleanedUrl.toLowerCase().includes(`${param}=`)
+            );
+            
+            if (hasAffiliateParam) {
+              affiliateLinksWithInfo.push({
+                url: cleanedUrl,
+                brand: '',
+                position: ''
+              });
+            }
           }
         }
       }
 
-      // Remove duplicates
-      const uniqueLinks = Array.from(new Set(affiliateLinks));
+      // Remove duplicates based on URL
+      const seen = new Set<string>();
+      const uniqueLinks = affiliateLinksWithInfo.filter(link => {
+        if (seen.has(link.url)) return false;
+        seen.add(link.url);
+        return true;
+      });
 
       console.log(`🔗 Found ${uniqueLinks.length} affiliate link(s) in ClickUp task ${taskId}`);
       console.log(`   Searched ${textSources.length} text source(s)`);

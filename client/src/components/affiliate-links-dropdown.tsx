@@ -72,7 +72,7 @@ export function AffiliateLinkDropdown({ clickupTaskId, subIdValue }: AffiliateLi
   const [isOpen, setIsOpen] = useState(false);
   const { toast } = useToast();
 
-  const { data, isLoading, error } = useQuery<{ links: string[] }>({
+  const { data, isLoading, error } = useQuery<{ links: Array<{url: string, brand: string, position: string}> }>({
     queryKey: ['/api/clickup/task', clickupTaskId, 'affiliate-links'],
     enabled: !!clickupTaskId && isOpen,
   });
@@ -131,20 +131,30 @@ export function AffiliateLinkDropdown({ clickupTaskId, subIdValue }: AffiliateLi
               <div className="px-3 py-2 text-xs font-semibold text-muted-foreground border-b sticky top-0 bg-popover">
                 {affiliateLinks.length} Affiliate Link{affiliateLinks.length !== 1 ? 's' : ''} - Click to copy with your Sub-ID
               </div>
-              {affiliateLinks.map((link, index) => {
+              {affiliateLinks.map((linkData, index) => {
+                const link = linkData.url;
                 const modifiedLink = safeReplacePayload(link, subIdValue);
                 const originalPayload = safeGetPayload(link);
                 const isCopied = copiedUrl === link;
+                const displayNumber = linkData.position || (index + 1).toString();
                 
                 return (
                   <DropdownMenuItem
                     key={index}
                     onClick={() => handleCopyLink(link)}
-                    className="flex items-start gap-2 py-3 px-3 cursor-pointer border-b last:border-b-0"
+                    className="flex items-start gap-3 py-3 px-3 cursor-pointer border-b last:border-b-0"
                     data-testid={`menuitem-affiliate-link-${index}`}
                   >
+                    <div className="flex-shrink-0 w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
+                      <span className="text-xs font-bold text-primary">{displayNumber}</span>
+                    </div>
                     <div className="flex-1 min-w-0">
-                      <div className="text-xs font-mono break-all text-foreground leading-relaxed">
+                      {linkData.brand && (
+                        <div className="text-sm font-semibold text-foreground mb-1">
+                          {linkData.brand}
+                        </div>
+                      )}
+                      <div className="text-xs font-mono break-all text-muted-foreground leading-relaxed">
                         {modifiedLink}
                       </div>
                       {originalPayload && (
@@ -154,9 +164,9 @@ export function AffiliateLinkDropdown({ clickupTaskId, subIdValue }: AffiliateLi
                       )}
                     </div>
                     {isCopied ? (
-                      <Check className="h-4 w-4 text-primary flex-shrink-0 mt-0.5" />
+                      <Check className="h-4 w-4 text-primary flex-shrink-0 mt-1" />
                     ) : (
-                      <Copy className="h-4 w-4 text-muted-foreground flex-shrink-0 mt-0.5" />
+                      <Copy className="h-4 w-4 text-muted-foreground flex-shrink-0 mt-1" />
                     )}
                   </DropdownMenuItem>
                 );

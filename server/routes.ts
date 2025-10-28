@@ -664,21 +664,100 @@ export async function registerRoutes(app: Express): Promise<Server> {
         comments = commentsData.comments || [];
       }
 
-      // Extract affiliate links from description and comments
-      const affiliateLinks: string[] = [];
-      const urlRegex = /https?:\/\/[^\s<>"]+/g;
-      
-      // Check description
-      if (taskData.description) {
-        const urls = taskData.description.match(urlRegex) || [];
-        affiliateLinks.push(...urls.filter((url: string) => url.includes('payload=')));
-      }
+      // Helper function to extract URLs from text with multiple strategies
+      const extractUrls = (text: string): string[] => {
+        if (!text) return [];
+        
+        const foundUrls: string[] = [];
+        
+        // Strategy 1: Standard URL regex (catches most http/https URLs)
+        const standardUrlRegex = /https?:\/\/[^\s<>"'`()[\]{}]+/gi;
+        const standardMatches = text.match(standardUrlRegex) || [];
+        foundUrls.push(...standardMatches);
+        
+        // Strategy 2: URL-encoded or HTML-escaped URLs
+        const decodedText = text
+          .replace(/&amp;/g, '&')
+          .replace(/&lt;/g, '<')
+          .replace(/&gt;/g, '>')
+          .replace(/&quot;/g, '"')
+          .replace(/&#39;/g, "'")
+          .replace(/%3A/gi, ':')
+          .replace(/%2F/gi, '/')
+          .replace(/%3F/gi, '?')
+          .replace(/%3D/gi, '=')
+          .replace(/%26/gi, '&');
+        
+        const decodedMatches = decodedText.match(standardUrlRegex) || [];
+        foundUrls.push(...decodedMatches);
+        
+        // Strategy 3: Markdown link format [text](url)
+        const markdownRegex = /\[([^\]]+)\]\((https?:\/\/[^)]+)\)/gi;
+        let markdownMatch;
+        while ((markdownMatch = markdownRegex.exec(text)) !== null) {
+          foundUrls.push(markdownMatch[2]);
+        }
+        
+        // Strategy 4: URLs wrapped in angle brackets <url>
+        const angleBracketRegex = /<(https?:\/\/[^>]+)>/gi;
+        let angleBracketMatch;
+        while ((angleBracketMatch = angleBracketRegex.exec(text)) !== null) {
+          foundUrls.push(angleBracketMatch[1]);
+        }
+        
+        return foundUrls;
+      };
 
-      // Check comments
+      // Helper function to clean and validate URLs
+      const cleanUrl = (url: string): string => {
+        // Remove trailing punctuation that's not part of the URL
+        return url.replace(/[,;.!?]+$/, '').trim();
+      };
+
+      // Collect all text sources to search
+      const textSources: string[] = [];
+      
+      // Check task description (both plain and HTML)
+      if (taskData.description) {
+        textSources.push(taskData.description);
+      }
+      if (taskData.text_content) {
+        textSources.push(taskData.text_content);
+      }
+      
+      // Check task name (sometimes URLs are in the title)
+      if (taskData.name) {
+        textSources.push(taskData.name);
+      }
+      
+      // Check comments (both comment_text and text fields)
       for (const comment of comments) {
         if (comment.comment_text) {
-          const urls = comment.comment_text.match(urlRegex) || [];
-          affiliateLinks.push(...urls.filter((url: string) => url.includes('payload=')));
+          textSources.push(comment.comment_text);
+        }
+        if (comment.text) {
+          textSources.push(comment.text);
+        }
+        if (comment.comment && Array.isArray(comment.comment)) {
+          for (const commentPart of comment.comment) {
+            if (commentPart.text) {
+              textSources.push(commentPart.text);
+            }
+          }
+        }
+      }
+
+      // Extract all URLs from all sources
+      const affiliateLinks: string[] = [];
+      
+      for (const text of textSources) {
+        const urls = extractUrls(text);
+        for (const url of urls) {
+          const cleanedUrl = cleanUrl(url);
+          // Only include URLs that have the payload parameter
+          if (cleanedUrl.includes('payload=')) {
+            affiliateLinks.push(cleanedUrl);
+          }
         }
       }
 
@@ -686,6 +765,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const uniqueLinks = Array.from(new Set(affiliateLinks));
 
       console.log(`🔗 Found ${uniqueLinks.length} affiliate link(s) in ClickUp task ${taskId}`);
+      console.log(`   Searched ${textSources.length} text source(s)`);
       
       res.json({ links: uniqueLinks });
     } catch (error: any) {

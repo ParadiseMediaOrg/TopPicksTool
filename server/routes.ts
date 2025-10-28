@@ -418,7 +418,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     };
 
     // Helper function to replace tracking parameter in URL
-    const replaceTrackingParam = (url: string, newValue: string): string => {
+    // ONLY replaces the parameter that contains the oldTaskId value
+    const replaceTrackingParam = (url: string, oldTaskId: string, newValue: string): string => {
       // First decode HTML entities
       url = decodeHtmlEntities(url);
       
@@ -445,27 +446,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
         'tdpeh', 'visit_id', 'pm_dv', 'dynamic', 'var1', 'zoneid'
       ];
 
-      let wasReplaced = false;
-
       try {
         const urlObj = new URL(url);
         
-        // Find which tracking parameter exists
+        // Find which parameter contains the old task ID value
         for (const param of trackingParams) {
-          if (urlObj.searchParams.has(param)) {
+          const value = urlObj.searchParams.get(param);
+          if (value === oldTaskId) {
+            // Found it! Only replace this specific parameter
             urlObj.searchParams.set(param, newValue);
-            wasReplaced = true;
             return urlObj.toString();
           }
         }
         
-        // Case-insensitive search
+        // Case-insensitive parameter name search with exact value match
         const allParams = Array.from(urlObj.searchParams.keys());
         for (const actualParam of allParams) {
-          for (const knownParam of trackingParams) {
-            if (actualParam.toLowerCase() === knownParam.toLowerCase()) {
+          const value = urlObj.searchParams.get(actualParam);
+          if (value === oldTaskId) {
+            // Check if this is a known tracking parameter (case-insensitive)
+            const isTrackingParam = trackingParams.some(
+              knownParam => actualParam.toLowerCase() === knownParam.toLowerCase()
+            );
+            if (isTrackingParam) {
               urlObj.searchParams.set(actualParam, newValue);
-              wasReplaced = true;
               return urlObj.toString();
             }
           }
@@ -474,20 +478,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
         // Parsing failed, fall through to regex
       }
       
-      // If URL parsing didn't find a tracked parameter, try regex fallback
-      // This handles malformed URLs like "?s=valuea=valueb=oldTaskId"
-      if (!wasReplaced) {
-        for (const param of trackingParams) {
-          const match = url.match(new RegExp(`(${param})=([^&\\s]+)`, 'i'));
-          if (match) {
-            return url.replace(
-              new RegExp(`${match[1]}=[^&\\s]+`, 'i'),
-              `${match[1]}=${newValue}`
-            );
-          }
+      // Regex fallback for malformed URLs
+      // Look for oldTaskId value in any tracking parameter
+      for (const param of trackingParams) {
+        const pattern = new RegExp(`(${param})=${oldTaskId.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(?=&|$)`, 'i');
+        if (pattern.test(url)) {
+          return url.replace(pattern, `$1=${newValue}`);
         }
       }
       
+      // If no match found, return original URL unchanged
       return url;
     };
 
@@ -528,8 +528,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
           // Remove cloaked link entirely
           updatedLine = updatedLine.replace(url, '');
         } else {
-          // Replace task ID with Sub-ID in tracking link
-          const updatedUrl = replaceTrackingParam(url, subIdValue);
+          // Replace ONLY the parameter that has the task ID with the Sub-ID
+          const updatedUrl = replaceTrackingParam(url, taskId, subIdValue);
           
           // Debug log for troubleshooting
           if (url.includes('rbyc.fynkelto.com')) {

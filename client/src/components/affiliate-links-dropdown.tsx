@@ -90,24 +90,38 @@ function safeGetPayload(url: string): string | null {
   return tracking ? tracking.value : null;
 }
 
-function safeReplacePayload(url: string, newPayload: string): string {
+function safeReplacePayload(url: string, oldTaskId: string, newPayload: string): string {
   // Decode HTML entities first
   url = decodeHtmlEntities(url);
   
-  const tracking = findTrackingParam(url);
-  if (!tracking) return url;
-  
+  // Find which parameter contains the old task ID
   try {
     const urlObj = new URL(url);
-    urlObj.searchParams.set(tracking.param, newPayload);
-    return urlObj.toString();
+    
+    // Check each parameter to find the one with the task ID value
+    const params = Array.from(urlObj.searchParams.entries());
+    for (const [param, value] of params) {
+      if (value === oldTaskId) {
+        // Found it! Only replace this specific parameter
+        urlObj.searchParams.set(param, newPayload);
+        return urlObj.toString();
+      }
+    }
   } catch (e) {
-    // Fallback for malformed/relative URLs - use regex
-    return url.replace(
-      new RegExp(`${tracking.param}=[^&\\s]+`, 'i'), 
-      `${tracking.param}=${newPayload}`
-    );
+    // Parsing failed, fall through to regex
   }
+  
+  // Regex fallback: find parameter with exact oldTaskId value
+  const escapedTaskId = oldTaskId.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const pattern = new RegExp(`([a-zA-Z_][a-zA-Z0-9_]*)=${escapedTaskId}(?=&|$)`, 'i');
+  const match = url.match(pattern);
+  
+  if (match) {
+    return url.replace(pattern, `$1=${newPayload}`);
+  }
+  
+  // If no match found, return original URL
+  return url;
 }
 
 export function AffiliateLinkDropdown({ clickupTaskId, subIdValue }: AffiliateLinkDropdownProps) {
@@ -122,9 +136,9 @@ export function AffiliateLinkDropdown({ clickupTaskId, subIdValue }: AffiliateLi
 
   const affiliateLinks = data?.links || [];
 
-  const handleCopyLink = async (originalUrl: string) => {
+  const handleCopyLink = async (originalUrl: string, sourceTaskId: string) => {
     try {
-      const modifiedUrl = safeReplacePayload(originalUrl, subIdValue);
+      const modifiedUrl = safeReplacePayload(originalUrl, sourceTaskId, subIdValue);
       await navigator.clipboard.writeText(modifiedUrl);
       setCopiedUrl(originalUrl);
       toast({
@@ -176,14 +190,14 @@ export function AffiliateLinkDropdown({ clickupTaskId, subIdValue }: AffiliateLi
               </div>
               {affiliateLinks.map((linkData, index) => {
                 const link = linkData.url;
-                const modifiedLink = safeReplacePayload(link, subIdValue);
+                const modifiedLink = safeReplacePayload(link, linkData.sourceTaskId, subIdValue);
                 const isCopied = copiedUrl === link;
                 const displayNumber = linkData.position || (index + 1).toString();
                 
                 return (
                   <DropdownMenuItem
                     key={index}
-                    onClick={() => handleCopyLink(link)}
+                    onClick={() => handleCopyLink(link, linkData.sourceTaskId)}
                     className="flex items-start gap-3 py-3 px-3 cursor-pointer border-b last:border-b-0 hover:bg-accent/50"
                     data-testid={`menuitem-affiliate-link-${index}`}
                   >

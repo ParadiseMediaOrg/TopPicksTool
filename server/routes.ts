@@ -904,11 +904,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
             continue;
           }
           
-          // If this line contains a URL, extract it
-          const urlMatch = line.match(/https?:\/\/[^\s<>"'`|]+/);
-          if (!urlMatch) continue;
+          // Extract URL more aggressively - get everything until we hit a delimiter
+          // This captures the full URL including parts separated by spaces in the table
+          const urlStartMatch = line.match(/https?:\/\/[^\s<>"'`|]+/);
+          if (!urlStartMatch) continue;
           
-          let url = urlMatch[0];
+          let url = urlStartMatch[0];
           
           // Skip pokerology.com URLs (these are cloaked links)
           if (url.includes('pokerology.com')) {
@@ -916,54 +917,57 @@ export async function registerRoutes(app: Express): Promise<Server> {
             continue;
           }
           
-          // Special handling for URLs ending with "=" (incomplete parameter)
-          if (url.endsWith('=')) {
-            // Find where this URL appears in the line
-            const urlIndex = line.indexOf(url);
-            if (urlIndex !== -1) {
-              const afterUrl = line.substring(urlIndex + url.length);
-              // Match the value that follows (might have a space before it)
-              const valueMatch = afterUrl.match(/^\s*([a-zA-Z0-9_-]+)/);
-              if (valueMatch) {
-                url = url + valueMatch[1];
+          // Get the position of this URL in the line
+          const urlStartIndex = line.indexOf(url);
+          const afterUrlStart = line.substring(urlStartIndex + url.length);
+          
+          // Build the complete URL by capturing everything until we hit a table delimiter (|)
+          // This handles cases where parameters/values are separated by spaces in markdown tables
+          const restOfCell = afterUrlStart.split('|')[0];
+          
+          // Append any remaining URL parts (handling spaces in table cells)
+          if (restOfCell.trim()) {
+            // Remove extra whitespace and join parts that belong to the URL
+            const parts = restOfCell.trim().split(/\s+/);
+            for (const part of parts) {
+              // Check if this part looks like it belongs to the URL
+              if (
+                part.startsWith('=') ||                           // Continuation of param: =value
+                part.match(/^[a-zA-Z0-9_-]+$/) ||                // Value only: taskId
+                part.match(/^&[a-zA-Z_]/) ||                      // New param: &param=value
+                part.match(/^[a-zA-Z_][a-zA-Z0-9_]*=/) ||        // New param: param=value
+                (!url.includes('?') && part.match(/^\?/))         // Query string start
+              ) {
+                // If URL ends with "=" and this is just a value, append it
+                if (url.endsWith('=') && part.match(/^[a-zA-Z0-9_-]+$/)) {
+                  url = url + part;
+                } 
+                // If this is a new parameter with &, append it
+                else if (part.startsWith('&')) {
+                  url = url + part.replace(/\s+/g, '');
+                }
+                // If this starts with = (value part got separated), append it
+                else if (part.startsWith('=')) {
+                  url = url + part;
+                }
+                else {
+                  url = url + part;
+                }
               }
             }
           }
           
-          // Find where this URL appears in the line
-          const urlIndex = line.indexOf(url);
-          if (urlIndex !== -1) {
-            // Get everything after the initial URL match (might contain more params separated by spaces)
-            const afterUrl = line.substring(urlIndex + url.length);
-            
-            // Look for continuation: parameter names followed by = (across spaces)
-            // Match patterns like: " &param=value" or " param=value" or "=value"
-            const continuationMatch = afterUrl.match(/^([^|]*?)(?=\s*\||$)/);
-            if (continuationMatch) {
-              const continuation = continuationMatch[1].trim();
-              
-              // If it starts with = or contains parameter patterns, append it
-              if (continuation && (
-                continuation.startsWith('=') ||
-                continuation.match(/^[&\s]*[a-zA-Z_]+=/) ||
-                // Handle case where parameters are separated by spaces in table
-                continuation.match(/^[a-zA-Z0-9_-]+(?=[&=\s]|$)/)
-              )) {
-                // Clean up the continuation - remove extra spaces between params
-                const cleanedContinuation = continuation.replace(/\s+&/g, '&').replace(/\s+=/g, '=');
-                url = url + cleanedContinuation;
-              }
-            }
-          }
+          // Clean up: remove any remaining spaces in parameters
+          url = url.replace(/\s+&/g, '&').replace(/\s+=/g, '=').replace(/=\s+/g, '=');
           
           // Final cleanup: ensure proper URL format
-          // Fix missing ? before first parameter
+          // Fix missing ? before first parameter if needed
           if (url.match(/https?:\/\/[^?]+[a-zA-Z0-9_-]+=/) && !url.includes('?')) {
             url = url.replace(/([a-zA-Z0-9_-]+=)/, '?$1');
           }
           
           trackingLinks.push(url);
-          console.log(`   ✅ Tracking link ${trackingLinks.length}: ${url.substring(0, 80)}...`);
+          console.log(`   ✅ Tracking link ${trackingLinks.length}: ${url}`);
         }
         
         // Convert to the expected format with source task ID

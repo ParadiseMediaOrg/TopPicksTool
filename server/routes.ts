@@ -670,8 +670,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         
         const foundLinks: Array<{url: string, brand: string, position: string}> = [];
         
-        // Look for "🥇 TOP PICKS LINEUP" section
-        const topPicksMatch = text.match(/🥇\s*TOP PICKS LINEUP[\s\S]*?(?=\n#{1,3}\s|\n---|\Z)/i);
+        // Look for "🥇 TOP PICKS LINEUP" section - be more generous with the ending
+        const topPicksMatch = text.match(/🥇\s*TOP PICKS LINEUP[\s\S]*?(?=\n#{1,2}\s[^#]|$)/i);
         if (!topPicksMatch) {
           console.log(`   ⚠️  No TOP PICKS LINEUP section found`);
           return foundLinks;
@@ -679,26 +679,66 @@ export async function registerRoutes(app: Express): Promise<Server> {
         
         const topPicksSection = topPicksMatch[0];
         console.log(`   🥇 Found TOP PICKS LINEUP section (${topPicksSection.length} chars)`);
+        console.log(`   📄 First 500 chars:`, topPicksSection.substring(0, 500));
+        console.log(`   📄 Last 500 chars:`, topPicksSection.substring(Math.max(0, topPicksSection.length - 500)));
         
-        // Extract all URLs from this section - even without tracking parameters
-        // The URLs from "Tracking Link with ClickUp task ID" column may not have parameters yet
-        const urlRegex = /https?:\/\/[^\s<>"'`|)]+/gi;
-        const urls = topPicksSection.match(urlRegex) || [];
+        // Parse the markdown table to extract ONLY the "Tracking Link with ClickUp task ID" column
+        const lines = topPicksSection.split('\n');
+        let trackingColumnIndex = -1;
+        let inTable = false;
         
-        console.log(`   🔍 Found ${urls.length} total URL(s) in TOP PICKS section`);
-        
-        // Add all URLs - they should all be from the tracking column
-        let position = 1;
-        for (const url of urls) {
-          foundLinks.push({
-            url,
-            brand: '',  // We'll try to extract brand from nearby text later
-            position: position.toString()
-          });
-          console.log(`   ✅ Added link ${position}: ${url.substring(0, 60)}...`);
-          position++;
+        for (let i = 0; i < lines.length; i++) {
+          const line = lines[i].trim();
+          
+          // Find the header row
+          if (line.includes('|') && line.toLowerCase().includes('tracking link')) {
+            const headers = line.split('|').map(h => h.trim());
+            trackingColumnIndex = headers.findIndex(h => 
+              h.toLowerCase().includes('tracking link') && h.toLowerCase().includes('clickup')
+            );
+            
+            if (trackingColumnIndex === -1) {
+              trackingColumnIndex = headers.findIndex(h => 
+                h.toLowerCase().includes('tracking link')
+              );
+            }
+            
+            if (trackingColumnIndex >= 0) {
+              inTable = true;
+              console.log(`   📊 Found "Tracking Link" column at index ${trackingColumnIndex}`);
+              console.log(`   📋 Table headers:`, headers);
+            }
+            continue;
+          }
+          
+          // Extract URLs from the tracking column only
+          if (inTable && trackingColumnIndex >= 0 && line.includes('|')) {
+            // Skip separator rows
+            if (line.match(/^[\s|:-]+$/)) continue;
+            
+            const cells = line.split('|').map(c => c.trim());
+            if (cells.length > trackingColumnIndex) {
+              const cellContent = cells[trackingColumnIndex];
+              
+              // Extract URLs from this specific cell only
+              const urlRegex = /https?:\/\/[^\s<>"'`|)]+/gi;
+              const urls = cellContent.match(urlRegex) || [];
+              
+              if (urls.length > 0) {
+                for (const url of urls) {
+                  foundLinks.push({
+                    url,
+                    brand: '',
+                    position: (foundLinks.length + 1).toString()
+                  });
+                  console.log(`   ✅ Row ${i}: ${url.substring(0, 60)}...`);
+                }
+              }
+            }
+          }
         }
         
+        console.log(`   📋 Total extracted: ${foundLinks.length} link(s)`);
         return foundLinks;
       };
 

@@ -153,6 +153,7 @@ export default function BrandRankings() {
   const [editBrandSearchQuery, setEditBrandSearchQuery] = useState("");
   const [isBulkAddDialogOpen, setIsBulkAddDialogOpen] = useState(false);
   const [bulkBrandText, setBulkBrandText] = useState("");
+  const [bulkAddTarget, setBulkAddTarget] = useState<"featured" | "other">("other");
 
   // Drag and drop sensors
   const sensors = useSensors(
@@ -667,7 +668,10 @@ export default function BrandRankings() {
                         <div className="flex gap-2">
                           <Button 
                             variant="outline" 
-                            onClick={() => setIsBulkAddDialogOpen(true)} 
+                            onClick={() => {
+                              setBulkAddTarget("featured");
+                              setIsBulkAddDialogOpen(true);
+                            }} 
                             data-testid="button-bulk-add-brands"
                           >
                             <Plus className="h-4 w-4 mr-2" />
@@ -836,7 +840,10 @@ export default function BrandRankings() {
                         <Button 
                           variant="outline" 
                           size="sm" 
-                          onClick={() => setIsBulkAddDialogOpen(true)} 
+                          onClick={() => {
+                            setBulkAddTarget("other");
+                            setIsBulkAddDialogOpen(true);
+                          }} 
                           data-testid="button-bulk-add-other-brands"
                         >
                           <Plus className="h-4 w-4 mr-2" />
@@ -941,10 +948,15 @@ export default function BrandRankings() {
       <Dialog open={isBulkAddDialogOpen} onOpenChange={setIsBulkAddDialogOpen}>
         <DialogContent data-testid="dialog-bulk-add-brands" className="max-w-2xl">
           <DialogHeader>
-            <DialogTitle>Bulk Add Brands to Other Brands</DialogTitle>
+            <DialogTitle>
+              {bulkAddTarget === "featured" 
+                ? "Bulk Add Brands to Featured Rankings" 
+                : "Bulk Add Brands to Other Brands"}
+            </DialogTitle>
             <DialogDescription>
-              Paste a list of brand names (one per line or comma-separated) to add them to {selectedGeo?.name}.
-              Brands will be added to the "Other Brands" section (not featured in top 10).
+              {bulkAddTarget === "featured" 
+                ? `Paste a list of brand names (one per line or comma-separated) to add them to ${selectedGeo?.name}. Brands will fill empty positions in the top 10 rankings.`
+                : `Paste a list of brand names (one per line or comma-separated) to add them to ${selectedGeo?.name}. Brands will be added to the "Other Brands" section (not featured in top 10).`}
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">
@@ -1021,17 +1033,52 @@ export default function BrandRankings() {
 
                 // Add all matched brands
                 let addedCount = 0;
-                for (const brand of matchedBrands) {
-                  try {
-                    await apiRequest("POST", `/api/geos/${selectedGeoId}/rankings`, {
-                      brandId: brand.id,
-                      position: null,
-                      rpcInCents: 0,
-                      timestamp: Date.now(),
+                
+                if (bulkAddTarget === "featured") {
+                  // For featured: find empty positions and fill them
+                  const occupiedPositions = new Set(featuredRankings.map(r => r.position));
+                  const emptyPositions = Array.from({ length: 10 }, (_, i) => i + 1)
+                    .filter(pos => !occupiedPositions.has(pos));
+                  
+                  const brandsToAdd = matchedBrands.slice(0, emptyPositions.length);
+                  
+                  for (let i = 0; i < brandsToAdd.length; i++) {
+                    const brand = brandsToAdd[i];
+                    const position = emptyPositions[i];
+                    try {
+                      await apiRequest("POST", `/api/geos/${selectedGeoId}/rankings`, {
+                        brandId: brand.id,
+                        position: position,
+                        rpcInCents: 0,
+                        timestamp: Date.now(),
+                      });
+                      addedCount++;
+                    } catch (error) {
+                      console.error(`Failed to add ${brand.name}:`, error);
+                    }
+                  }
+                  
+                  if (matchedBrands.length > emptyPositions.length) {
+                    toast({
+                      title: "Some Brands Skipped",
+                      description: `Only ${emptyPositions.length} positions available. ${matchedBrands.length - emptyPositions.length} brands were not added.`,
+                      variant: "destructive",
                     });
-                    addedCount++;
-                  } catch (error) {
-                    console.error(`Failed to add ${brand.name}:`, error);
+                  }
+                } else {
+                  // For other brands: add without position
+                  for (const brand of matchedBrands) {
+                    try {
+                      await apiRequest("POST", `/api/geos/${selectedGeoId}/rankings`, {
+                        brandId: brand.id,
+                        position: null,
+                        rpcInCents: 0,
+                        timestamp: Date.now(),
+                      });
+                      addedCount++;
+                    } catch (error) {
+                      console.error(`Failed to add ${brand.name}:`, error);
+                    }
                   }
                 }
 

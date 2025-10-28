@@ -479,9 +479,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
           const pathSegments = urlObj.pathname.split('/').filter(Boolean);
           let pathWasModified = false;
           
+          console.log(`   🔍 PATH-BASED CHECK: Looking for taskId "${oldTaskId}" in path segments:`, pathSegments);
+          
           // Search for task ID in path segments
           const updatedSegments = pathSegments.map(segment => {
             if (segment === oldTaskId) {
+              console.log(`   ✅ FOUND taskId "${oldTaskId}" in path! Replacing with "${newValue}"`);
               pathWasModified = true;
               return newValue;
             }
@@ -489,8 +492,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
           });
           
           if (pathWasModified) {
-            urlObj.pathname = '/' + updatedSegments.join('/') + (urlObj.pathname.endsWith('/') ? '/' : '');
-            return urlObj.toString();
+            const newUrl = urlObj.protocol + '//' + urlObj.host + '/' + updatedSegments.join('/') + (urlObj.pathname.endsWith('/') ? '/' : '');
+            console.log(`   ✅ PATH REPLACED: ${url} → ${newUrl}`);
+            return newUrl;
+          } else {
+            console.log(`   ⚠️  Task ID "${oldTaskId}" NOT found in path segments`);
           }
         }
       } catch (e) {

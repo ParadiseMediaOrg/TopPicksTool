@@ -484,9 +484,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Decode HTML entities in the line first
       const decodedLine = decodeHtmlEntities(line);
       
-      // Extract all URLs from the decoded line
-      const urlRegex = /https?:\/\/[^\s<>"'`|)]+/gi;
-      const urls = decodedLine.match(urlRegex) || [];
+      // Extract all URLs from the decoded line - also capture trailing task IDs with spaces
+      // Pattern: URL might be followed by space and task ID like "url= taskId"
+      const urlRegex = /https?:\/\/[^\s<>"'`|)]+(?:\s+[a-zA-Z0-9]+)?/gi;
+      const rawUrls = decodedLine.match(urlRegex) || [];
+      
+      // Clean up URLs: remove trailing whitespace and task ID pattern
+      const urls = rawUrls.map(url => url.replace(/\s+[a-zA-Z0-9]+$/, '').trim());
       
       let updatedLine = decodedLine;
       
@@ -832,8 +836,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const topPicksSection = topPicksMatch[0];
         console.log(`   🥇 Found TOP PICKS LINEUP section (${topPicksSection.length} chars)`);
         
-        // Extract all URLs from the section
-        const urlRegex = /https?:\/\/[^\s<>"'`|)]+/gi;
+        // Extract all URLs from the section - but also capture trailing task IDs with spaces
+        // Pattern: URL might be followed by space and task ID like "url= taskId"
+        const urlRegex = /https?:\/\/[^\s<>"'`|)]+(?:\s+[a-zA-Z0-9]+)?/gi;
         const allUrls = topPicksSection.match(urlRegex) || [];
         
         console.log(`   🔍 Found ${allUrls.length} total URL(s) in TOP PICKS section`);
@@ -843,12 +848,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const trackingLinks: string[] = [];
         
         for (let i = 0; i < allUrls.length; i++) {
-          const url = allUrls[i];
+          let url = allUrls[i].trim();
           // Skip pokerology.com URLs (these are cloaked links)
           if (url.includes('pokerology.com')) {
             console.log(`   ⏭️  Skipping cloaked link: ${url.substring(0, 60)}...`);
             continue;
           }
+          
+          // Handle case where URL has space before task ID (e.g., "url= taskId")
+          // Remove any trailing whitespace and task ID pattern
+          url = url.replace(/\s+[a-zA-Z0-9]+$/, '');
+          
           // This is a tracking link
           trackingLinks.push(url);
           console.log(`   ✅ Tracking link ${trackingLinks.length}: ${url.substring(0, 60)}...`);

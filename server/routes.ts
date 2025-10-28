@@ -1287,14 +1287,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Task Reconciliation: Cross-reference ClickUp tasks with featured brands and Sub-ID tracker
   app.post("/api/reconcile-tasks", async (req, res) => {
     try {
-      const { taskIds, geoId } = req.body;
+      const { taskIds } = req.body;
       
       if (!Array.isArray(taskIds) || taskIds.length === 0) {
         return res.status(400).json({ error: "taskIds must be a non-empty array" });
-      }
-      
-      if (!geoId) {
-        return res.status(400).json({ error: "geoId is required" });
       }
 
       const apiKey = process.env.CLICKUP_API_KEY;
@@ -1310,13 +1306,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Fetch all websites to map task names to websites
       const websites = await storage.getWebsites();
       
-      // Fetch featured brands for this GEO
-      const rankings = await storage.getRankingsByGeo(geoId);
-      const featuredRankings = rankings
-        .filter(r => r.position !== null && r.position >= 1 && r.position <= 10)
-        .sort((a, b) => (a.position || 0) - (b.position || 0));
-      
-      // Fetch brands to get brand names
+      // Fetch all GEOs and brands to use for each task's individual GEO
+      const allGeos = await storage.getGeos();
+      const geosByCode = new Map(allGeos.map(g => [g.code.toUpperCase(), g]));
       const brands = await storage.getBrands();
       const brandsById = new Map(brands.map(b => [b.id, b]));
 
@@ -1326,6 +1318,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             taskId,
             websiteName: null,
             websiteId: null,
+            detectedGeo: null,
             brandMatch: null,
             subIdExists: false,
             subIdValue: null,
@@ -1345,7 +1338,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             }
           }
 
-          // Fetch ClickUp task to get website info
+          // Fetch ClickUp task to get custom fields and task data
           if (apiKey) {
             try {
               const response = await fetch(`https://api.clickup.com/api/v2/task/${taskId.trim()}`, {
@@ -1358,8 +1351,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
               if (response.ok) {
                 const taskData = await response.json();
                 
+                // Extract *Target GEO from custom fields
+                let taskGeoId: string | null = null;
+                if (taskData.custom_fields && Array.isArray(taskData.custom_fields)) {
+                  const targetGeoField = taskData.custom_fields.find((field: any) => 
+                    field.name === '*Target GEO'
+                  );
+                  
+                  if (targetGeoField && targetGeoField.value) {
+                    // The value might be a string like "USA" or an object with nested properties
+                    const geoValue = typeof targetGeoField.value === 'string' 
+                      ? targetGeoField.value 
+                      : targetGeoField.value.name || targetGeoField.value.value;
+                    
+                    if (geoValue) {
+                      const geoCode = geoValue.toUpperCase();
+                      const matchedGeo = geosByCode.get(geoCode);
+                      if (matchedGeo) {
+                        taskGeoId = matchedGeo.id;
+                        result.detectedGeo = {
+                          code: matchedGeo.code,
+                          name: matchedGeo.name,
+                        };
+                      }
+                    }
+                  }
+                }
+                
                 // Try to determine website from task name
-                // Task name format is usually like "Website Name - Description"
                 const taskName = taskData.name || '';
                 
                 // Try to match task name with website names
@@ -1372,21 +1391,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
                   result.websiteId = matchedWebsite.id;
                 }
 
-                // Try to match against featured brands
-                // Look for brand names in task name or description
-                for (const ranking of featuredRankings) {
-                  const brand = brandsById.get(ranking.brandId);
-                  if (brand) {
-                    const brandNameLower = brand.name.toLowerCase();
-                    const taskNameLower = taskName.toLowerCase();
-                    const taskDescLower = (taskData.description || '').toLowerCase();
-                    
-                    if (taskNameLower.includes(brandNameLower) || taskDescLower.includes(brandNameLower)) {
-                      result.brandMatch = {
-                        position: ranking.position,
-                        brandName: brand.name,
-                      };
-                      break; // Use first match
+                // Try to match against featured brands for this task's specific GEO
+                if (taskGeoId) {
+                  const rankings = await storage.getRankingsByGeo(taskGeoId);
+                  const featuredRankings = rankings
+                    .filter(r => r.position !== null && r.position >= 1 && r.position <= 10)
+                    .sort((a, b) => (a.position || 0) - (b.position || 0));
+                  
+                  for (const ranking of featuredRankings) {
+                    const brand = brandsById.get(ranking.brandId);
+                    if (brand) {
+                      const brandNameLower = brand.name.toLowerCase();
+                      const taskNameLower = taskName.toLowerCase();
+                      const taskDescLower = (taskData.description || '').toLowerCase();
+                      
+                      if (taskNameLower.includes(brandNameLower) || taskDescLower.includes(brandNameLower)) {
+                        result.brandMatch = {
+                          position: ranking.position,
+                          brandName: brand.name,
+                        };
+                        break; // Use first match
+                      }
                     }
                   }
                 }

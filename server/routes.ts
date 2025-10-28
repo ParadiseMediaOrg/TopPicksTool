@@ -418,7 +418,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     };
 
     // Helper function to replace tracking parameter in URL
-    const replaceTrackingParam = (url: string, newValue: string): string => {
+    const replaceTrackingParam = (url: string, newValue: string, oldTaskId: string): string => {
       // First decode HTML entities
       url = decodeHtmlEntities(url);
       
@@ -450,6 +450,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       try {
         const urlObj = new URL(url);
         
+        // STAGE 1: Replace query parameters
         // Find which tracking parameter exists
         for (const param of trackingParams) {
           if (urlObj.searchParams.has(param)) {
@@ -468,6 +469,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
               wasReplaced = true;
               return urlObj.toString();
             }
+          }
+        }
+
+        // STAGE 2: Replace path-based tracking IDs
+        // Only attempt if no query parameters were replaced
+        // Look for the exact task ID in the path segments
+        if (!wasReplaced && oldTaskId) {
+          const pathSegments = urlObj.pathname.split('/').filter(Boolean);
+          let pathWasModified = false;
+          
+          // Search for task ID in path segments
+          const updatedSegments = pathSegments.map(segment => {
+            if (segment === oldTaskId) {
+              pathWasModified = true;
+              return newValue;
+            }
+            return segment;
+          });
+          
+          if (pathWasModified) {
+            urlObj.pathname = '/' + updatedSegments.join('/') + (urlObj.pathname.endsWith('/') ? '/' : '');
+            return urlObj.toString();
           }
         }
       } catch (e) {
@@ -529,7 +552,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           updatedLine = updatedLine.replace(url, '');
         } else {
           // Replace task ID with Sub-ID in tracking link
-          const updatedUrl = replaceTrackingParam(url, subIdValue);
+          const updatedUrl = replaceTrackingParam(url, subIdValue, taskId);
           
           // Debug log for troubleshooting
           if (url.includes('rbyc.fynkelto.com')) {

@@ -151,6 +151,8 @@ export default function BrandRankings() {
   const [geoSearchQuery, setGeoSearchQuery] = useState("");
   const [brandSearchQuery, setBrandSearchQuery] = useState("");
   const [editBrandSearchQuery, setEditBrandSearchQuery] = useState("");
+  const [isBulkAddDialogOpen, setIsBulkAddDialogOpen] = useState(false);
+  const [bulkBrandText, setBulkBrandText] = useState("");
 
   // Drag and drop sensors
   const sensors = useSensors(
@@ -662,10 +664,20 @@ export default function BrandRankings() {
                         </p>
                       </div>
                       {!isEditMode ? (
-                        <Button onClick={handleStartEdit} data-testid="button-edit-rankings">
-                          <Edit2 className="h-4 w-4 mr-2" />
-                          Edit Rankings
-                        </Button>
+                        <div className="flex gap-2">
+                          <Button 
+                            variant="outline" 
+                            onClick={() => setIsBulkAddDialogOpen(true)} 
+                            data-testid="button-bulk-add-brands"
+                          >
+                            <Plus className="h-4 w-4 mr-2" />
+                            Bulk Add
+                          </Button>
+                          <Button onClick={handleStartEdit} data-testid="button-edit-rankings">
+                            <Edit2 className="h-4 w-4 mr-2" />
+                            Edit Rankings
+                          </Button>
+                        </div>
                       ) : (
                         <div className="flex gap-2">
                           <Button
@@ -913,6 +925,136 @@ export default function BrandRankings() {
           </main>
         </div>
       </div>
+
+      {/* Bulk Add Brands Dialog */}
+      <Dialog open={isBulkAddDialogOpen} onOpenChange={setIsBulkAddDialogOpen}>
+        <DialogContent data-testid="dialog-bulk-add-brands" className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Bulk Add Brands to Other Brands</DialogTitle>
+            <DialogDescription>
+              Paste a list of brand names (one per line or comma-separated) to add them to {selectedGeo?.name}.
+              Brands will be added to the "Other Brands" section (not featured in top 10).
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div>
+              <Label htmlFor="bulk-brands">Brand Names</Label>
+              <Textarea
+                id="bulk-brands"
+                placeholder="1Bet&#10;1Red&#10;20bet&#10;&#10;or&#10;&#10;1Bet, 1Red, 20bet"
+                value={bulkBrandText}
+                onChange={(e) => setBulkBrandText(e.target.value)}
+                rows={12}
+                className="font-mono"
+                data-testid="textarea-bulk-brands"
+              />
+              <p className="text-xs text-muted-foreground mt-2">
+                Tip: Separate brand names with commas or new lines. Names are case-insensitive.
+              </p>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setIsBulkAddDialogOpen(false);
+                setBulkBrandText("");
+              }}
+              data-testid="button-cancel-bulk-add"
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={async () => {
+                if (!selectedGeoId || !bulkBrandText.trim()) return;
+
+                // Parse brand names from textarea
+                const brandNames = bulkBrandText
+                  .split(/[,\n]+/)
+                  .map(name => name.trim())
+                  .filter(name => name.length > 0);
+
+                if (brandNames.length === 0) {
+                  toast({
+                    title: "No Brands",
+                    description: "Please enter at least one brand name.",
+                    variant: "destructive",
+                  });
+                  return;
+                }
+
+                // Find matching brands
+                const matchedBrands: Brand[] = [];
+                const unmatchedNames: string[] = [];
+                const alreadyAdded: string[] = [];
+
+                brandNames.forEach(name => {
+                  const brand = brands.find(b => 
+                    b.name.toLowerCase() === name.toLowerCase()
+                  );
+                  
+                  if (brand) {
+                    // Check if already in featured or other brands
+                    const inFeatured = featuredRankings.some(r => r.brandId === brand.id);
+                    const inOther = otherBrands.some(r => r.brandId === brand.id);
+                    
+                    if (inFeatured || inOther) {
+                      alreadyAdded.push(brand.name);
+                    } else {
+                      matchedBrands.push(brand);
+                    }
+                  } else {
+                    unmatchedNames.push(name);
+                  }
+                });
+
+                // Add all matched brands
+                let addedCount = 0;
+                for (const brand of matchedBrands) {
+                  try {
+                    await apiRequest("POST", `/api/geos/${selectedGeoId}/rankings`, {
+                      brandId: brand.id,
+                      position: null,
+                      rpcInCents: 0,
+                      timestamp: Date.now(),
+                    });
+                    addedCount++;
+                  } catch (error) {
+                    console.error(`Failed to add ${brand.name}:`, error);
+                  }
+                }
+
+                // Refresh the rankings
+                queryClient.invalidateQueries({ queryKey: ["/api/geos", selectedGeoId, "rankings"] });
+
+                // Show results
+                const messages: string[] = [];
+                if (addedCount > 0) {
+                  messages.push(`✓ Added ${addedCount} brand${addedCount > 1 ? 's' : ''}`);
+                }
+                if (alreadyAdded.length > 0) {
+                  messages.push(`⚠ ${alreadyAdded.length} already added: ${alreadyAdded.slice(0, 3).join(", ")}${alreadyAdded.length > 3 ? "..." : ""}`);
+                }
+                if (unmatchedNames.length > 0) {
+                  messages.push(`✗ ${unmatchedNames.length} not found: ${unmatchedNames.slice(0, 3).join(", ")}${unmatchedNames.length > 3 ? "..." : ""}`);
+                }
+
+                toast({
+                  title: addedCount > 0 ? "Bulk Add Complete" : "No Brands Added",
+                  description: messages.join("\n"),
+                  variant: addedCount > 0 ? "default" : "destructive",
+                });
+
+                setIsBulkAddDialogOpen(false);
+                setBulkBrandText("");
+              }}
+              data-testid="button-submit-bulk-add"
+            >
+              Add Brands
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* GEO Dialog */}
       <Dialog open={isGeoDialogOpen} onOpenChange={setIsGeoDialogOpen}>

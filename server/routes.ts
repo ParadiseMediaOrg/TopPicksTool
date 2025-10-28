@@ -480,7 +480,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
       updatedLines.push(updatedLine);
     }
 
-    return updatedLines.join('\n').trim();
+    // Wrap the table in a code block to preserve formatting in ClickUp
+    const tableContent = updatedLines.join('\n').trim();
+    const finalComment = '```\n' + tableContent + '\n```';
+    
+    // Debug: Log the exact comment being generated
+    console.log(`   📝 Generated comment preview (first 500 chars):`);
+    console.log(finalComment.substring(0, 500));
+    
+    return finalComment;
   }
 
   app.post("/api/websites/:websiteId/clickup/post-comments", async (req, res) => {

@@ -1006,15 +1006,32 @@ export default function BrandRankings() {
                   return;
                 }
 
-                // Find matching brands
+                // Find or create brands
                 const matchedBrands: Brand[] = [];
-                const unmatchedNames: string[] = [];
+                const createdBrands: string[] = [];
                 const alreadyAdded: string[] = [];
 
-                brandNames.forEach(name => {
-                  const brand = brands.find(b => 
+                for (const name of brandNames) {
+                  // Check if brand already exists (case-insensitive)
+                  let brand = brands.find(b => 
                     b.name.toLowerCase() === name.toLowerCase()
                   );
+                  
+                  if (!brand) {
+                    // Create the brand if it doesn't exist
+                    try {
+                      const res = await apiRequest("POST", "/api/brands", {
+                        name: name,
+                      });
+                      const newBrand = await res.json();
+                      brand = newBrand as Brand;
+                      brands.push(newBrand as Brand); // Add to local cache
+                      createdBrands.push(newBrand.name);
+                    } catch (error) {
+                      console.error(`Failed to create brand ${name}:`, error);
+                      continue;
+                    }
+                  }
                   
                   if (brand) {
                     // Check if already in featured or other brands
@@ -1026,10 +1043,8 @@ export default function BrandRankings() {
                     } else {
                       matchedBrands.push(brand);
                     }
-                  } else {
-                    unmatchedNames.push(name);
                   }
-                });
+                }
 
                 // Add all matched brands
                 let addedCount = 0;
@@ -1085,16 +1100,21 @@ export default function BrandRankings() {
                 // Refresh the rankings
                 queryClient.invalidateQueries({ queryKey: ["/api/geos", selectedGeoId, "rankings"] });
 
+                // Refresh brands list if new brands were created
+                if (createdBrands.length > 0) {
+                  queryClient.invalidateQueries({ queryKey: ["/api/brands"] });
+                }
+
                 // Show results
                 const messages: string[] = [];
                 if (addedCount > 0) {
-                  messages.push(`✓ Added ${addedCount} brand${addedCount > 1 ? 's' : ''}`);
+                  messages.push(`✓ Added ${addedCount} brand${addedCount > 1 ? 's' : ''} to ${bulkAddTarget === "featured" ? "featured rankings" : "other brands"}`);
+                }
+                if (createdBrands.length > 0) {
+                  messages.push(`✓ Created ${createdBrands.length} new brand${createdBrands.length > 1 ? 's' : ''}: ${createdBrands.slice(0, 3).join(", ")}${createdBrands.length > 3 ? "..." : ""}`);
                 }
                 if (alreadyAdded.length > 0) {
                   messages.push(`⚠ ${alreadyAdded.length} already added: ${alreadyAdded.slice(0, 3).join(", ")}${alreadyAdded.length > 3 ? "..." : ""}`);
-                }
-                if (unmatchedNames.length > 0) {
-                  messages.push(`✗ ${unmatchedNames.length} not found: ${unmatchedNames.slice(0, 3).join(", ")}${unmatchedNames.length > 3 ? "..." : ""}`);
                 }
 
                 toast({

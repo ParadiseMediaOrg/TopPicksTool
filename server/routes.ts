@@ -680,35 +680,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const topPicksSection = topPicksMatch[0];
         console.log(`   🥇 Found TOP PICKS LINEUP section (${topPicksSection.length} chars)`);
         
-        // Extract all URLs from this section with affiliate tracking parameters
-        const affiliateParams = [
-          'payload', 'subid', 'sub_id', 'clickid', 'click_id', 
-          'affid', 'aff_id', 'campaign', 'campaign_id', 'tracking',
-          'tracker', 'ref', 'reference', 'source', 'utm_campaign',
-          'pid', 'aid', 'sid', 'cid', 'tid', 'btag', 'tag', 'var'
-        ];
-        
+        // Extract all URLs from this section - even without tracking parameters
+        // The URLs from "Tracking Link with ClickUp task ID" column may not have parameters yet
         const urlRegex = /https?:\/\/[^\s<>"'`|)]+/gi;
         const urls = topPicksSection.match(urlRegex) || [];
         
         console.log(`   🔍 Found ${urls.length} total URL(s) in TOP PICKS section`);
         
-        // Filter for affiliate links
+        // Add all URLs - they should all be from the tracking column
         let position = 1;
         for (const url of urls) {
-          const hasAffiliateParam = affiliateParams.some(param => 
-            url.toLowerCase().includes(`${param}=`)
-          );
-          
-          if (hasAffiliateParam) {
-            foundLinks.push({
-              url,
-              brand: '',  // We'll try to extract brand from nearby text later
-              position: position.toString()
-            });
-            position++;
-            console.log(`   ✅ Found affiliate link ${position - 1}: ${url.substring(0, 60)}...`);
-          }
+          foundLinks.push({
+            url,
+            brand: '',  // We'll try to extract brand from nearby text later
+            position: position.toString()
+          });
+          console.log(`   ✅ Added link ${position}: ${url.substring(0, 60)}...`);
+          position++;
         }
         
         return foundLinks;

@@ -21,7 +21,7 @@ const affiliateParams = [
   'payload', 'subid', 'sub_id', 'clickid', 'click_id', 
   'affid', 'aff_id', 'campaign', 'campaign_id', 'tracking',
   'tracker', 'ref', 'reference', 'source', 'utm_campaign',
-  'pid', 'aid', 'sid', 'cid', 'tid', 'btag', 'tag'
+  'pid', 'aid', 'sid', 'cid', 'tid', 'btag', 'tag', 'var'
 ];
 
 function findTrackingParam(url: string): { param: string; value: string } | null {

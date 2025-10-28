@@ -886,7 +886,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         'payload', 'subid', 'sub_id', 'clickid', 'click_id', 
         'affid', 'aff_id', 'campaign', 'campaign_id', 'tracking',
         'tracker', 'ref', 'reference', 'source', 'utm_campaign',
-        'pid', 'aid', 'sid', 'cid', 'tid', 'btag', 'tag'
+        'pid', 'aid', 'sid', 'cid', 'tid', 'btag', 'tag', 'var'
       ];
       
       for (const text of textSources) {

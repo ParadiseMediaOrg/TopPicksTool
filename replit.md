@@ -2,7 +2,10 @@
 
 ## Overview
 
-A web-based application for managing unique tracking codes (Sub-IDs) across multiple websites. Each website can have its own customizable Sub-ID format pattern, ensuring uniqueness and pattern diversity so that different sites cannot be identified as belonging to the same owner. The system provides tools for generating, tracking, importing, and exporting Sub-IDs with a focus on data integrity and user productivity.
+A web-based application for managing unique tracking codes (Sub-IDs) across multiple websites and brand rankings by geographic region. The system includes two main modules:
+
+1. **Sub-ID Tracker**: Manages unique tracking codes across multiple websites with customizable format patterns, ClickUp CMS integration, and affiliate link management
+2. **Brand Rankings**: Maintains top 10 brand lists per geographic region (GEO) with RPC (Revenue Per Click) values for performance tracking
 
 ## User Preferences
 
@@ -30,12 +33,14 @@ Preferred communication style: Simple, everyday language.
 - Custom hooks for reusable logic (mobile detection, toast notifications)
 
 **Key UI Features**
-- Collapsible sidebar navigation for website management
-- Multi-dialog system for adding websites and bulk importing Sub-IDs
+- Collapsible sidebar navigation for website and GEO management
+- Multi-dialog system for adding websites, GEOs, brands, and bulk importing Sub-IDs
 - Real-time duplicate detection across all Sub-IDs
 - CSV export functionality for Sub-ID data
+- Brand rankings editor with position management (1-10) and RPC tracking
 - Theme toggle supporting light and dark modes
 - Responsive design with mobile-first breakpoints
+- Navigation between Sub-ID Tracker and Brand Rankings modules
 
 ### Backend Architecture
 
@@ -45,10 +50,11 @@ Preferred communication style: Simple, everyday language.
 - Custom middleware for request logging and JSON body parsing with raw body preservation
 
 **API Design**
-- RESTful endpoints organized by resource type (websites, subids)
+- RESTful endpoints organized by resource type (websites, subids, geos, brands, rankings)
 - Route handlers separated into dedicated routes module
 - Consistent error handling with appropriate HTTP status codes
 - JSON response format for all API endpoints
+- Zod validation for all POST/PUT requests
 
 **Data Access Layer**
 - Storage abstraction pattern (IStorage interface) for flexibility
@@ -76,8 +82,14 @@ Preferred communication style: Simple, everyday language.
 **Schema Design**
 - **Websites Table**: Stores website configurations with ID, name, and format pattern
 - **SubIds Table**: Stores generated Sub-IDs with relationships to websites
-  - Includes value, optional URL, timestamp, and immutability flag
+  - Includes value, optional URL, timestamp, immutability flag, ClickUp task ID, comment posted flag
   - Foreign key constraint with cascade delete to maintain referential integrity
+- **GEOs Table**: Stores geographic regions with code, name, and sort order
+- **Brands Table**: Global brand directory with name, default URL, and status
+- **GeoBrandRankings Table**: Junction table for GEO-Brand relationships with position and RPC data
+  - Position (1-10 ranking), RPC in cents, optional notes, timestamp
+  - Unique constraints on (geoId, position) and (geoId, brandId) to prevent duplicates
+  - Foreign keys to GEOs and Brands with cascade delete
 - UUID-based primary keys generated via `gen_random_uuid()`
 - Immutability feature prevents deletion of websites with marked Sub-IDs
 

@@ -279,7 +279,7 @@ export default function BrandRankings() {
         notes: r.notes || null,
         timestamp: Date.now(),
       }));
-
+    
     bulkUpsertRankingsMutation.mutate({
       geoId: selectedGeoId,
       rankings: rankingsToSave,
@@ -518,7 +518,6 @@ export default function BrandRankings() {
                                         <SelectValue placeholder="Select brand..." />
                                       </SelectTrigger>
                                       <SelectContent data-testid={`select-brand-content-${position}`}>
-                                        <SelectItem value="" data-testid={`select-brand-item-none-${position}`}>None</SelectItem>
                                         {brands.map((brand) => (
                                           <SelectItem key={brand.id} value={brand.id} data-testid={`select-brand-item-${brand.id}-${position}`}>
                                             {brand.name}

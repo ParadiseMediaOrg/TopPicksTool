@@ -117,3 +117,39 @@ Preferred communication style: Simple, everyday language.
 - LocalStorage for theme persistence
 - Clipboard API for copy-to-clipboard functionality
 - URL parsing for bulk import validation
+
+### ClickUp CMS Integration
+
+**Authentication & API**
+- Uses CLICKUP_API_KEY stored in Replit Secrets for secure API access
+- RESTful API integration with ClickUp v2 endpoints
+- Task fetching, comment posting, and custom field reading
+
+**URL Synchronization**
+- Automatically fetches URLs from ClickUp task custom field "*Live URL"
+- Bulk refresh feature to update all Sub-IDs with missing URLs
+- Updates are fetched on-demand to ensure data freshness
+
+**Affiliate Link Extraction**
+- Parses task descriptions to extract affiliate tracking links from 🥇 TOP PICKS LINEUP table
+- Identifies and filters out cloaked links (pokerology.com domains)
+- Extracts tracking links with position metadata for accurate replacement
+- Lazy-loads affiliate links only when dropdown is opened for performance
+- Wide dropdown (800px) with custom orange scrollbar matching brand colors
+
+**Comment Posting with TOP PICKS LINEUP Table**
+- Posts entire 🥇 TOP PICKS LINEUP table as ClickUp comment
+- Replaces ClickUp task ID with Sub-ID in all tracking URLs
+- Supports 35+ tracking parameters with case-sensitive matching:
+  - `payload`, `subid`, `sub_id`, `clickid`, `click_id`, `clickID`
+  - `campaign`, `campaign_id`, `affid`, `aff_id`
+  - `tracking`, `tracker`, `ref`, `reference`, `source`
+  - `utm_campaign`, `utm_source`, `utm_medium`, `utm_term`, `utm_content`
+  - `pid`, `aid`, `sid`, `cid`, `tid`, `btag`, `tag`, `var`
+  - `raw`, `nci`, `nkw`, `lpid`, `bid`
+- Removes cloaked links (pokerology.com URLs) from table
+- Wraps table in code block (triple backticks) to preserve markdown formatting in ClickUp
+- Individual comment button (💬 icon) for single Sub-ID posting
+- Bulk comment feature to post tables for all Sub-IDs with ClickUp tasks
+- Comment buttons remain unlocked to allow reposting/updates
+- Duplicate detection prevents posting same Sub-ID multiple times to same task

@@ -129,9 +129,9 @@ export function SubIdTable({ subIds, onCopy, onExportCSV, onDelete, onPostCommen
                               variant="ghost"
                               size="icon"
                               onClick={() => onPostComment(subId.id)}
-                              disabled={postingCommentId === subId.id || subId.commentPosted}
+                              disabled={postingCommentId === subId.id}
                               data-testid={`button-comment-${subId.id}`}
-                              className={`h-5 w-5 ${subId.commentPosted ? 'text-muted-foreground opacity-50' : ''}`}
+                              className="h-5 w-5"
                             >
                               <MessageSquare className="h-3 w-3" />
                             </Button>

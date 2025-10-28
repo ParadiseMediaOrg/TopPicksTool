@@ -261,9 +261,11 @@ export default function Dashboard() {
       return await res.json();
     },
     onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/websites", selectedWebsiteId, "subids"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/subids"] });
       toast({
         title: "Comment Posted",
-        description: "Sub-ID posted to ClickUp task successfully.",
+        description: "TOP PICKS LINEUP table posted to ClickUp task successfully.",
       });
     },
     onError: (error: any) => {
@@ -282,10 +284,12 @@ export default function Dashboard() {
       return await res.json();
     },
     onSuccess: (data: { posted: number; skipped: number; checked: number; errors?: any[] }) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/websites", selectedWebsiteId, "subids"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/subids"] });
       if (data.posted > 0) {
         toast({
           title: "Comments Posted",
-          description: `${data.posted} new comment${data.posted !== 1 ? 's' : ''} posted to ClickUp. ${data.skipped} already had comments.`,
+          description: `${data.posted} TOP PICKS LINEUP table${data.posted !== 1 ? 's' : ''} posted to ClickUp. ${data.skipped} already had comments.`,
         });
       } else {
         toast({

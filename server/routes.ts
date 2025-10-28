@@ -468,12 +468,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Replace tracking links, remove cloaked links
       for (const url of urls) {
         if (url.includes('pokerology.com')) {
-          // Remove cloaked link entirely (leave blank)
-          updatedLine = updatedLine.replace(url, '');
+          // Remove cloaked link entirely including any trailing text (old task ID)
+          // Match the URL plus any alphanumeric text that follows it
+          const urlWithTrailing = new RegExp(url.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\s*[a-zA-Z0-9]*', 'g');
+          updatedLine = updatedLine.replace(urlWithTrailing, '');
         } else {
-          // Replace task ID with Sub-ID in tracking link
+          // Replace task ID with Sub-ID in tracking link and remove any trailing old task ID
           const updatedUrl = replaceTrackingParam(url, subIdValue);
-          updatedLine = updatedLine.replace(url, updatedUrl);
+          // Match the URL plus any trailing alphanumeric text (old task ID) after it
+          const urlWithTrailing = new RegExp(url.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '(\\s+[a-zA-Z0-9]+)?', 'g');
+          updatedLine = updatedLine.replace(urlWithTrailing, updatedUrl);
         }
       }
       

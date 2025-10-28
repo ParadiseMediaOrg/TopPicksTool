@@ -125,6 +125,25 @@ export function AffiliateLinkDropdown({ clickupTaskId, subIdValue }: AffiliateLi
     }
   };
 
+  // Extract domain from URL
+  const getDomain = (url: string): string => {
+    try {
+      const urlObj = new URL(url);
+      return urlObj.hostname.replace('www.', '');
+    } catch {
+      return url.split('/')[2] || url;
+    }
+  };
+
+  // Get tracking parameter info
+  const getTrackingInfo = (url: string): string => {
+    const tracking = findTrackingParam(url);
+    return tracking ? tracking.param : 'N/A';
+  };
+
+  // Get first clickup payload if available
+  const firstOriginalPayload = affiliateLinks.length > 0 ? safeGetPayload(affiliateLinks[0].url) : null;
+
   return (
     <div className="mt-2">
       <DropdownMenu open={isOpen} onOpenChange={setIsOpen}>
@@ -139,29 +158,39 @@ export function AffiliateLinkDropdown({ clickupTaskId, subIdValue }: AffiliateLi
             <ChevronDown className="h-3 w-3 ml-1.5" />
           </Button>
         </DropdownMenuTrigger>
-        <DropdownMenuContent align="start" className="w-[600px] max-h-[500px] overflow-y-auto">
+        <DropdownMenuContent align="start" className="w-[650px] max-h-[500px] overflow-y-auto">
           {isLoading ? (
-            <div className="px-2 py-3 text-xs text-muted-foreground text-center">
+            <div className="px-3 py-4 text-sm text-muted-foreground text-center">
               Loading links...
             </div>
           ) : error ? (
-            <div className="px-2 py-3 text-xs text-destructive flex items-center gap-2 justify-center">
-              <AlertCircle className="h-3.5 w-3.5" />
+            <div className="px-3 py-4 text-sm text-destructive flex items-center gap-2 justify-center">
+              <AlertCircle className="h-4 w-4" />
               Failed to load affiliate links
             </div>
           ) : affiliateLinks.length === 0 ? (
-            <div className="px-2 py-3 text-xs text-muted-foreground text-center">
+            <div className="px-3 py-4 text-sm text-muted-foreground text-center">
               No affiliate links found in task
             </div>
           ) : (
             <>
-              <div className="px-3 py-2 text-xs font-semibold text-muted-foreground border-b sticky top-0 bg-popover">
-                {affiliateLinks.length} Affiliate Link{affiliateLinks.length !== 1 ? 's' : ''} - Click to copy with your Sub-ID
+              <div className="px-4 py-2.5 border-b sticky top-0 bg-popover z-10">
+                <div className="flex items-center justify-between">
+                  <div className="text-sm font-semibold text-foreground">
+                    {affiliateLinks.length} Affiliate Link{affiliateLinks.length !== 1 ? 's' : ''}
+                  </div>
+                  {firstOriginalPayload && (
+                    <div className="text-xs text-muted-foreground">
+                      Replacing: <span className="font-mono font-semibold">{firstOriginalPayload}</span> → <span className="font-mono font-semibold text-primary">{subIdValue}</span>
+                    </div>
+                  )}
+                </div>
               </div>
               {affiliateLinks.map((linkData, index) => {
                 const link = linkData.url;
                 const modifiedLink = safeReplacePayload(link, subIdValue);
-                const originalPayload = safeGetPayload(link);
+                const domain = getDomain(link);
+                const trackingParam = getTrackingInfo(link);
                 const isCopied = copiedUrl === link;
                 const displayNumber = linkData.position || (index + 1).toString();
                 
@@ -169,34 +198,35 @@ export function AffiliateLinkDropdown({ clickupTaskId, subIdValue }: AffiliateLi
                   <DropdownMenuItem
                     key={index}
                     onClick={() => handleCopyLink(link)}
-                    className="flex items-start gap-3 py-3 px-3 cursor-pointer border-b last:border-b-0 hover:bg-accent/50"
+                    className="flex items-center gap-3 py-2.5 px-4 cursor-pointer border-b last:border-b-0 hover-elevate active-elevate-2 focus:bg-transparent"
                     data-testid={`menuitem-affiliate-link-${index}`}
                   >
-                    <div className="flex items-start gap-3 flex-1">
-                      <div className="flex-shrink-0 w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center border border-primary/20">
-                        <span className="text-sm font-bold text-primary">{displayNumber}</span>
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        {linkData.brand && (
-                          <div className="text-sm font-bold text-foreground mb-1.5">
-                            {linkData.brand}
-                          </div>
-                        )}
-                        <div className="text-xs font-mono break-all text-muted-foreground leading-relaxed">
-                          {modifiedLink}
+                    <div className="flex-shrink-0 w-8 h-8 rounded-md bg-primary/10 flex items-center justify-center border border-primary/20">
+                      <span className="text-xs font-bold text-primary">{displayNumber}</span>
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 mb-1">
+                        <div className="text-sm font-semibold text-foreground truncate">
+                          {linkData.brand || domain}
                         </div>
-                        {originalPayload && (
-                          <div className="text-xs text-muted-foreground mt-1.5 font-medium opacity-70">
-                            Original: {originalPayload}
-                          </div>
-                        )}
+                        <div className="text-xs px-1.5 py-0.5 rounded bg-muted font-mono text-muted-foreground flex-shrink-0">
+                          {trackingParam}
+                        </div>
+                      </div>
+                      <div className="text-xs text-muted-foreground truncate font-mono">
+                        {domain}
                       </div>
                     </div>
-                    {isCopied ? (
-                      <Check className="h-4 w-4 text-primary flex-shrink-0 mt-1" />
-                    ) : (
-                      <Copy className="h-4 w-4 text-muted-foreground flex-shrink-0 mt-1" />
-                    )}
+                    <div className="flex-shrink-0">
+                      {isCopied ? (
+                        <div className="flex items-center gap-1.5 text-primary">
+                          <Check className="h-4 w-4" />
+                          <span className="text-xs font-medium">Copied</span>
+                        </div>
+                      ) : (
+                        <Copy className="h-4 w-4 text-muted-foreground" />
+                      )}
+                    </div>
                   </DropdownMenuItem>
                 );
               })}

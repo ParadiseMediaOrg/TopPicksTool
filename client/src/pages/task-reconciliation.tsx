@@ -553,12 +553,12 @@ export default function TaskReconciliation() {
                           }
 
                           return (
-                            <div className="flex flex-col gap-2 min-w-[180px]">
+                            <div className="flex items-center gap-2">
                               {/* Brand badge display */}
                               {displayMatch ? (
                                 <Badge 
                                   variant="default" 
-                                  className={effectiveGeo ? "gap-1 cursor-pointer hover-elevate active-elevate-2 w-fit" : "gap-1 w-fit"}
+                                  className={effectiveGeo ? "gap-1 cursor-pointer hover-elevate active-elevate-2 whitespace-nowrap" : "gap-1 whitespace-nowrap"}
                                   onClick={effectiveGeo ? () => handleBrandBadgeClick(effectiveGeo) : undefined}
                                   onKeyDown={effectiveGeo ? (e) => {
                                     if (e.key === 'Enter' || e.key === ' ') {
@@ -589,7 +589,7 @@ export default function TaskReconciliation() {
                                 }}
                                 data-testid={`select-brand-geo-${index}`}
                               >
-                                <SelectTrigger className="h-8 text-xs w-full">
+                                <SelectTrigger className="h-8 text-xs w-[140px]">
                                   <SelectValue placeholder="Select GEO" />
                                 </SelectTrigger>
                                 <SelectContent>

@@ -1,7 +1,6 @@
 import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { Link } from "wouter";
-import { Plus, Edit2, Trash2, Save, X, Home, GripVertical } from "lucide-react";
+import { Plus, Edit2, Trash2, Save, X, GripVertical } from "lucide-react";
 import {
   DndContext,
   closestCenter,
@@ -48,9 +47,9 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Card } from "@/components/ui/card";
-import { SidebarProvider, Sidebar, SidebarContent, SidebarTrigger } from "@/components/ui/sidebar";
+import { SidebarProvider, Sidebar, SidebarContent } from "@/components/ui/sidebar";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { ThemeToggle } from "@/components/theme-toggle";
+import { PageNav } from "@/components/page-nav";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import type { Geo, Brand, GeoBrandRanking } from "@shared/schema";
@@ -603,33 +602,10 @@ export default function BrandRankings() {
         </Sidebar>
 
         <div className="flex flex-col flex-1">
-          <header className="flex items-center justify-between p-4 border-b">
-            <div className="flex items-center gap-4">
-              <SidebarTrigger data-testid="button-sidebar-toggle" />
-              <Button variant="outline" size="sm" asChild data-testid="link-dashboard">
-                <Link href="/">
-                  <Home className="h-4 w-4 mr-2" />
-                  Sub-ID Tracker
-                </Link>
-              </Button>
-              {selectedGeo && (
-                <div>
-                  <h1 className="text-xl font-semibold">{selectedGeo.name}</h1>
-                  <p className="text-sm text-muted-foreground">Top 10 Brand Rankings</p>
-                </div>
-              )}
-            </div>
-            <div className="flex items-center gap-2">
-              <Button
-                variant="outline"
-                onClick={() => setIsBrandDialogOpen(true)}
-                data-testid="button-manage-brands"
-              >
-                Manage Brands
-              </Button>
-              <ThemeToggle />
-            </div>
-          </header>
+          <PageNav 
+            showSidebarToggle 
+            title={selectedGeo ? `${selectedGeo.name} (${selectedGeo.code})` : undefined}
+          />
 
           <main className="flex-1 overflow-auto">
             {!selectedGeoId ? (

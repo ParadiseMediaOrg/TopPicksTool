@@ -52,6 +52,7 @@ export const geoBrandRankings = pgTable("geo_brand_rankings", {
   brandId: varchar("brand_id").notNull().references(() => brands.id, { onDelete: "cascade" }),
   position: integer("position"), // Nullable: null = not featured, 1-10 = featured ranking
   affiliateLink: text("affiliate_link"),
+  sortOrder: integer("sort_order").notNull().default(0), // For custom ordering of non-featured brands
   timestamp: bigint("timestamp", { mode: "number" }).notNull(),
 }, (table) => ({
   // Only enforce unique position when position is not null (featured brands)

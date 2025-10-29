@@ -404,7 +404,7 @@ export default function BrandRankings() {
       ...ranking,
       brand: brands.find((b) => b.id === ranking.brandId),
     }))
-    .sort((a, b) => (a.brand?.name || "").localeCompare(b.brand?.name || ""));
+    .sort((a, b) => (a.sortOrder || 0) - (b.sortOrder || 0));
 
   // Create GEO mutation with default brand list
   const createGeoMutation = useMutation({
@@ -821,6 +821,30 @@ export default function BrandRankings() {
     },
   });
 
+  // Bulk update sortOrder mutation for other brands
+  const bulkUpdateSortOrderMutation = useMutation({
+    mutationFn: async (updates: { id: string; sortOrder: number }[]) => {
+      const res = await apiRequest("POST", "/api/rankings/bulk-update-sort-order", { 
+        updates,
+      });
+      return await res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/brand-lists", selectedListId, "rankings"] });
+      toast({
+        title: "Order Updated",
+        description: "Brand order has been updated.",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to update brand order",
+        variant: "destructive",
+      });
+    },
+  });
+
   const handleStartEdit = () => {
     const editMap = new Map<number, RankingWithBrand>();
     for (let i = 1; i <= 10; i++) {
@@ -836,6 +860,7 @@ export default function BrandRankings() {
           brandId: "",
           position: i,
           affiliateLink: null,
+          sortOrder: 0,
           timestamp: Date.now(),
         });
       }
@@ -923,18 +948,14 @@ export default function BrandRankings() {
 
       const reordered = arrayMove(otherBrands, oldIndex, newIndex);
       
-      // For other brands, we need to maintain the sort order
-      // We'll use the brand name sorting but could add explicit sort order field later
-      const brandIds = reordered.map((r) => r.id);
-      
-      // For now, just trigger a re-sort based on the new order
-      // This is a simple implementation - we could enhance with explicit ordering later
-      queryClient.invalidateQueries({ queryKey: ["/api/brand-lists", selectedListId, "rankings"] });
-      
-      toast({
-        title: "Order Updated",
-        description: "Brand order has been updated.",
-      });
+      // Update sortOrder based on new positions
+      const updates = reordered.map((ranking, index) => ({
+        id: ranking.id,
+        sortOrder: index,
+      }));
+
+      // Update sortOrder values in backend
+      bulkUpdateSortOrderMutation.mutate(updates);
     }
   };
 

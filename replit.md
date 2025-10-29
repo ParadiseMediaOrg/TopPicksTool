@@ -194,8 +194,12 @@ Preferred communication style: Simple, everyday language.
    - Extracts "*Target GEO" custom field (handles both string and object formats)
    - Maps GEO code (e.g., "USA", "UK") to database GEO via case-insensitive lookup
    - Extracts "*Publisher" custom field to identify the website
-   - Matches "*Publisher" value against website names in Sub-ID tracker (with flexible matching)
-   - Falls back to task name matching if "*Publisher" is not set or no match found
+   - Matches "*Publisher" value against website names using strict matching:
+     - First attempts exact match (after normalization)
+     - Then filters common filler words (publisher, site, casino, poker, betting, etc.)
+     - Requires exact word-by-word equality (no substring matches)
+     - Only accepts unambiguous single match
+   - Falls back to task name matching if "*Publisher" is not set, ambiguous, or no match found
    - Searches task name/description for featured brand names (top 10 for that task's specific GEO)
    - Checks if Sub-ID already exists for the task ID
 

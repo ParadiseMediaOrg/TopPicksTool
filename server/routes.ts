@@ -1383,15 +1383,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
                     field.name === '*Publisher'
                   );
                   
-                  if (publisherField && publisherField.value) {
-                    // The value might be a string or an object with nested properties
-                    publisherValue = typeof publisherField.value === 'string' 
-                      ? publisherField.value 
-                      : publisherField.value.name || publisherField.value.value || null;
+                  if (publisherField) {
+                    console.log(`[ClickUp Task ${taskId}] *Publisher field found:`, JSON.stringify(publisherField, null, 2));
                     
-                    console.log(`[ClickUp Task ${taskId}] Publisher extracted: "${publisherValue}"`);
+                    if (publisherField.value) {
+                      // The value might be a string or an object with nested properties
+                      publisherValue = typeof publisherField.value === 'string' 
+                        ? publisherField.value 
+                        : publisherField.value.name || publisherField.value.label || publisherField.value.value || null;
+                      
+                      console.log(`[ClickUp Task ${taskId}] Publisher extracted: "${publisherValue}"`);
+                    } else {
+                      console.log(`[ClickUp Task ${taskId}] *Publisher field has no value`);
+                    }
                   } else {
-                    console.log(`[ClickUp Task ${taskId}] No *Publisher field found or value is empty`);
+                    console.log(`[ClickUp Task ${taskId}] *Publisher field not found`);
                   }
                 }
                 

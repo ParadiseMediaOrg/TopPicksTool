@@ -6,10 +6,11 @@ A web-based application for managing unique tracking codes (Sub-IDs) across mult
 
 1. **Sub-ID Tracker**: Manages unique tracking codes across multiple websites with customizable format patterns, ClickUp CMS integration, and affiliate link management
 2. **Brand Rankings**: Maintains multiple brand lists per geographic region (GEO):
-   - Each GEO can have multiple named brand lists (e.g., "Sports Betting", "Casino")
+   - Each GEO automatically receives three default brand lists upon creation: "Casino", "Sports", and "Crypto"
+   - Users can create additional brand lists, rename existing lists, or delete lists as needed
    - **Featured Brands**: Top 10 ranked brands (positions 1-10) per list with affiliate link tracking
    - **Other Brands**: Unlimited non-featured brands per list for organization and tracking
-   - Users can create, rename, and delete brand lists within each GEO
+   - Drag-and-drop reordering for both featured brands (positions) and other brands (custom sortOrder)
 3. **Top Picks Tool**: Cross-references ClickUp task IDs against brand rankings and Sub-ID tracker to identify:
    - Website associations (matched from task names)
    - Featured brand matches (positions 1-10) for selected GEO
@@ -67,6 +68,7 @@ Preferred communication style: Simple, everyday language.
 - Consistent error handling with appropriate HTTP status codes
 - JSON response format for all API endpoints
 - Zod validation for all POST/PUT requests
+- GEO creation automatically includes atomic creation of default brand lists (Casino, Sports, Crypto) with rollback on failure
 
 **Data Access Layer**
 - Storage abstraction pattern (IStorage interface) for flexibility

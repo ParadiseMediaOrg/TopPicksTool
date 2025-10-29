@@ -31,6 +31,7 @@ import type { GeoBrandRanking, Brand } from "@shared/schema";
 
 interface ReconciliationResult {
   taskId: string;
+  subniche?: string | null;
   websiteName: string | null;
   websiteId: string | null;
   detectedGeo: {
@@ -331,6 +332,7 @@ export default function TaskReconciliation() {
                 <TableHeader>
                   <TableRow>
                     <TableHead>Task ID</TableHead>
+                    <TableHead>Subniche</TableHead>
                     <TableHead>Target GEO</TableHead>
                     <TableHead>Website</TableHead>
                     <TableHead>Brand Match</TableHead>
@@ -344,6 +346,15 @@ export default function TaskReconciliation() {
                     <TableRow key={index} data-testid={`result-row-${index}`}>
                       <TableCell className="font-mono text-sm" data-testid={`cell-task-id-${index}`}>
                         {result.taskId}
+                      </TableCell>
+                      <TableCell className="text-sm" data-testid={`cell-subniche-${index}`}>
+                        {result.subniche ? (
+                          <Badge variant="secondary" className="text-xs">
+                            {result.subniche}
+                          </Badge>
+                        ) : (
+                          <span className="text-muted-foreground text-xs">-</span>
+                        )}
                       </TableCell>
                       <TableCell data-testid={`cell-geo-${index}`}>
                         {result.detectedGeo ? (

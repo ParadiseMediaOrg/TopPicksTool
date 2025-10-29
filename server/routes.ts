@@ -1990,6 +1990,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
                   } else {
                     console.log(`[ClickUp Task ${taskId}] *Publisher field not found`);
                   }
+                  
+                  // Extract *Subniche
+                  const subnicheField = taskData.custom_fields.find((field: any) => 
+                    field.name === '*Subniche'
+                  );
+                  
+                  if (subnicheField && subnicheField.value !== null && subnicheField.value !== undefined) {
+                    // Handle dropdown/select fields (value is a numeric ID)
+                    if (subnicheField.type === 'drop_down' || subnicheField.type === 'labels') {
+                      const options = subnicheField.type_config?.options || [];
+                      const selectedOption = options.find((opt: any) => opt.id === subnicheField.value || opt.orderindex === subnicheField.value);
+                      
+                      if (selectedOption) {
+                        result.subniche = selectedOption.name || selectedOption.label || null;
+                        console.log(`[ClickUp Task ${taskId}] Subniche extracted from dropdown: "${result.subniche}"`);
+                      }
+                    } else {
+                      // Handle text fields or other field types
+                      result.subniche = typeof subnicheField.value === 'string' 
+                        ? subnicheField.value 
+                        : subnicheField.value.name || subnicheField.value.label || subnicheField.value.value || null;
+                      
+                      console.log(`[ClickUp Task ${taskId}] Subniche extracted: "${result.subniche}"`);
+                    }
+                  }
                 }
                 
                 const taskName = taskData.name || '';

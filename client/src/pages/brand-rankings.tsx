@@ -1,5 +1,6 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
+import { useLocation } from "wouter";
 import { Plus, Edit2, Trash2, Save, X, GripVertical } from "lucide-react";
 import {
   DndContext,
@@ -140,6 +141,7 @@ function SortableGeoItem({
 
 export default function BrandRankings() {
   const { toast } = useToast();
+  const [location] = useLocation();
   const [selectedGeoId, setSelectedGeoId] = useState<string | null>(null);
   const [isGeoDialogOpen, setIsGeoDialogOpen] = useState(false);
   const [isBrandDialogOpen, setIsBrandDialogOpen] = useState(false);
@@ -179,6 +181,21 @@ export default function BrandRankings() {
   });
 
   const selectedGeo = geos.find((g) => g.id === selectedGeoId);
+
+  // Auto-select GEO from URL parameter (only when no GEO is currently selected)
+  useEffect(() => {
+    const searchParams = new URLSearchParams(location.split('?')[1] || '');
+    const geoParam = searchParams.get('geo');
+    
+    // Only auto-select if no GEO is currently selected
+    if (geoParam && geos.length > 0 && !selectedGeoId) {
+      // Check if the GEO exists
+      const geoExists = geos.some(g => g.id === geoParam);
+      if (geoExists) {
+        setSelectedGeoId(geoParam);
+      }
+    }
+  }, [location, geos, selectedGeoId]);
 
   // Filter GEOs by search query
   const filteredGeos = geos.filter((geo) => {

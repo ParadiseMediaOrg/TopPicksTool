@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Link } from "wouter";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -16,6 +17,7 @@ interface ReconciliationResult {
   detectedGeo: {
     code: string;
     name: string;
+    id: string;
   } | null;
   brandMatch: {
     position: number;
@@ -192,7 +194,19 @@ export default function TaskReconciliation() {
                         )}
                       </TableCell>
                       <TableCell data-testid={`cell-brand-match-${index}`}>
-                        {result.brandMatch ? (
+                        {result.brandMatch && result.detectedGeo ? (
+                          <Link 
+                            href={`/brand-rankings?geo=${result.detectedGeo.id}`}
+                            data-testid={`link-brand-match-${index}`}
+                          >
+                            <Badge 
+                              variant="default" 
+                              className="gap-1 cursor-pointer hover-elevate active-elevate-2"
+                            >
+                              #{result.brandMatch.position} {result.brandMatch.brandName}
+                            </Badge>
+                          </Link>
+                        ) : result.brandMatch ? (
                           <Badge variant="default" className="gap-1">
                             #{result.brandMatch.position} {result.brandMatch.brandName}
                           </Badge>

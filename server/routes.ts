@@ -1476,6 +1476,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
                           if (matchedGeo) {
                             taskGeoId = matchedGeo.id;
                             result.detectedGeo = {
+                              id: matchedGeo.id,
                               code: matchedGeo.code,
                               name: matchedGeo.name,
                             };

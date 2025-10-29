@@ -1321,9 +1321,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         if (brand && ranking.affiliateLink) {
           let affiliateLink = ranking.affiliateLink;
           
-          // If we have a Sub-ID, add it to the affiliate link
+          // If we have a Sub-ID, simply append it to the end of the affiliate link
           if (subId) {
-            affiliateLink = addSubIdToUrl(affiliateLink, taskId, subId.value);
+            affiliateLink = affiliateLink + subId.value;
           }
           
           commentText += `${ranking.position}. **${brand.name}**\n`;

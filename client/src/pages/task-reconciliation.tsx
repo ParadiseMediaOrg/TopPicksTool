@@ -9,7 +9,7 @@ import { PageNav } from "@/components/page-nav";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useQuery } from "@tanstack/react-query";
-import { Loader2, Search, CheckCircle2, XCircle, AlertCircle, Globe, GripVertical, Plus } from "lucide-react";
+import { Loader2, Search, CheckCircle2, XCircle, AlertCircle, Globe, GripVertical, Plus, AlertTriangle } from "lucide-react";
 import {
   DndContext,
   closestCenter,
@@ -409,25 +409,32 @@ export default function TaskReconciliation() {
                         {result.subIdValue || <span className="text-muted-foreground">-</span>}
                       </TableCell>
                       <TableCell data-testid={`cell-actions-${index}`}>
-                        {!result.subIdExists && result.websiteId && !result.error && (
-                          <Button
-                            size="sm"
-                            onClick={() => handleCreateSubId(result.taskId, result.websiteId!)}
-                            disabled={creatingSubIds.has(result.taskId)}
-                            data-testid={`button-create-subid-${index}`}
-                          >
-                            {creatingSubIds.has(result.taskId) ? (
-                              <>
-                                <Loader2 className="h-3 w-3 mr-1 animate-spin" />
-                                Creating...
-                              </>
-                            ) : (
-                              <>
-                                <Plus className="h-3 w-3 mr-1" />
-                                Create Sub-ID
-                              </>
-                            )}
-                          </Button>
+                        {!result.subIdExists && !result.error && (
+                          result.websiteId ? (
+                            <Button
+                              size="sm"
+                              onClick={() => handleCreateSubId(result.taskId, result.websiteId!)}
+                              disabled={creatingSubIds.has(result.taskId)}
+                              data-testid={`button-create-subid-${index}`}
+                            >
+                              {creatingSubIds.has(result.taskId) ? (
+                                <>
+                                  <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                                  Creating...
+                                </>
+                              ) : (
+                                <>
+                                  <Plus className="h-3 w-3 mr-1" />
+                                  Create Sub-ID
+                                </>
+                              )}
+                            </Button>
+                          ) : result.websiteName ? (
+                            <div className="flex items-center gap-2 text-xs text-amber-600 dark:text-amber-500">
+                              <AlertTriangle className="h-3 w-3 flex-shrink-0" />
+                              <span>Add "{cleanWebsiteName(result.websiteName)}" to Sub-ID Tracker first</span>
+                            </div>
+                          ) : null
                         )}
                       </TableCell>
                     </TableRow>
@@ -436,7 +443,7 @@ export default function TaskReconciliation() {
               </Table>
             </div>
 
-            <div className="mt-4 flex gap-4 text-sm text-muted-foreground">
+            <div className="mt-4 flex flex-wrap gap-4 text-sm text-muted-foreground">
               <div className="flex items-center gap-2">
                 <CheckCircle2 className="h-4 w-4 text-green-600" />
                 <span>
@@ -449,6 +456,14 @@ export default function TaskReconciliation() {
                   {results.filter(r => !r.subIdExists && !r.error).length} without Sub-ID
                 </span>
               </div>
+              {results.some(r => r.websiteName && !r.websiteId && !r.error) && (
+                <div className="flex items-center gap-2">
+                  <AlertTriangle className="h-4 w-4 text-amber-600" />
+                  <span className="text-amber-600 dark:text-amber-500">
+                    {results.filter(r => r.websiteName && !r.websiteId && !r.error).length} need website setup
+                  </span>
+                </div>
+              )}
               {results.some(r => r.error) && (
                 <div className="flex items-center gap-2">
                   <AlertCircle className="h-4 w-4 text-destructive" />

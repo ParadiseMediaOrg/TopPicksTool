@@ -1395,28 +1395,52 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 
                 const taskName = taskData.name || '';
                 
+                // Helper function to normalize text for matching
+                const normalizeForMatching = (text: string): string => {
+                  return text
+                    .toLowerCase()
+                    .replace(/[^\w\s]/g, ' ') // Replace punctuation with spaces
+                    .replace(/\s+/g, ' ')      // Normalize whitespace
+                    .trim();
+                };
+                
                 // Try to match website using *Publisher custom field first
                 if (publisherValue && !result.websiteName) {
-                  const publisherLower = publisherValue.toLowerCase();
-                  const matchedWebsite = websites.find(w => {
-                    const websiteLower = w.name.toLowerCase();
-                    // Check for exact match or if publisher contains website name
-                    return websiteLower === publisherLower || 
-                           publisherLower.includes(websiteLower) ||
-                           websiteLower.includes(publisherLower);
+                  const publisherNormalized = normalizeForMatching(publisherValue);
+                  
+                  // Find all potential matches
+                  const potentialMatches = websites.filter(w => {
+                    const websiteNormalized = normalizeForMatching(w.name);
+                    // Check for exact match or if one contains the other
+                    return websiteNormalized === publisherNormalized || 
+                           publisherNormalized.includes(websiteNormalized) ||
+                           websiteNormalized.includes(publisherNormalized);
                   });
                   
-                  if (matchedWebsite) {
-                    result.websiteName = matchedWebsite.name;
-                    result.websiteId = matchedWebsite.id;
+                  // Only use publisher match if it's unambiguous (single match or exact match)
+                  if (potentialMatches.length === 1) {
+                    result.websiteName = potentialMatches[0].name;
+                    result.websiteId = potentialMatches[0].id;
+                  } else if (potentialMatches.length > 1) {
+                    // If multiple matches, try exact match
+                    const exactMatch = potentialMatches.find(w => 
+                      normalizeForMatching(w.name) === publisherNormalized
+                    );
+                    if (exactMatch) {
+                      result.websiteName = exactMatch.name;
+                      result.websiteId = exactMatch.id;
+                    }
+                    // Otherwise, fall through to task name matching
                   }
                 }
                 
                 // Fallback: Try to match website from task name if not already matched
                 if (!result.websiteName) {
-                  const matchedWebsite = websites.find(w => 
-                    taskName.toLowerCase().includes(w.name.toLowerCase())
-                  );
+                  const taskNameNormalized = normalizeForMatching(taskName);
+                  const matchedWebsite = websites.find(w => {
+                    const websiteNormalized = normalizeForMatching(w.name);
+                    return taskNameNormalized.includes(websiteNormalized);
+                  });
                   
                   if (matchedWebsite) {
                     result.websiteName = matchedWebsite.name;

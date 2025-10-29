@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useLocation } from "wouter";
-import { Plus, Edit2, Trash2, Save, X, GripVertical } from "lucide-react";
+import { Plus, Edit2, Trash2, Save, X, GripVertical, ArrowDown, ArrowUp } from "lucide-react";
 import {
   DndContext,
   closestCenter,
@@ -457,6 +457,65 @@ export default function BrandRankings() {
     },
   });
 
+  // Move brand to other brands (set position to null)
+  const moveToOtherBrandsMutation = useMutation({
+    mutationFn: async (rankingId: string) => {
+      const res = await apiRequest("PUT", `/api/rankings/${rankingId}`, {
+        position: null,
+      });
+      return await res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/geos", selectedGeoId, "rankings"] });
+      toast({
+        title: "Brand Moved",
+        description: "Brand moved to Other Brands section.",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to move brand",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Promote brand to featured (assign next available position)
+  const promoteToFeaturedMutation = useMutation({
+    mutationFn: async (rankingId: string) => {
+      // Find next available position in top 10
+      const occupiedPositions = new Set(featuredRankings.map((r) => r.position).filter((p) => p !== null));
+      let nextPosition = 1;
+      while (occupiedPositions.has(nextPosition) && nextPosition <= 10) {
+        nextPosition++;
+      }
+      
+      if (nextPosition > 10) {
+        throw new Error("All top 10 positions are occupied. Remove a brand first.");
+      }
+
+      const res = await apiRequest("PUT", `/api/rankings/${rankingId}`, {
+        position: nextPosition,
+      });
+      return await res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/geos", selectedGeoId, "rankings"] });
+      toast({
+        title: "Brand Promoted",
+        description: "Brand moved to Featured Brands.",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to promote brand",
+        variant: "destructive",
+      });
+    },
+  });
+
   // Bulk upsert rankings mutation
   const bulkUpsertRankingsMutation = useMutation({
     mutationFn: async ({ geoId, rankings }: { geoId: string; rankings: any[] }) => {
@@ -752,18 +811,34 @@ export default function BrandRankings() {
                                     ) : "-"}
                                   </TableCell>
                                   <TableCell data-testid={`cell-actions-${ranking.position}`}>
-                                    <Button
-                                      size="icon"
-                                      variant="ghost"
-                                      onClick={() => {
-                                        if (confirm(`Remove ${ranking.brand?.name || 'this brand'} from position #${ranking.position}?`)) {
-                                          deleteRankingMutation.mutate(ranking.id);
-                                        }
-                                      }}
-                                      data-testid={`button-delete-ranking-${ranking.position}`}
-                                    >
-                                      <Trash2 className="h-4 w-4" />
-                                    </Button>
+                                    <div className="flex gap-1">
+                                      <Button
+                                        size="icon"
+                                        variant="ghost"
+                                        onClick={() => {
+                                          if (confirm(`Move ${ranking.brand?.name || 'this brand'} to Other Brands?`)) {
+                                            moveToOtherBrandsMutation.mutate(ranking.id);
+                                          }
+                                        }}
+                                        data-testid={`button-move-to-other-${ranking.position}`}
+                                        title="Move to Other Brands"
+                                      >
+                                        <ArrowDown className="h-4 w-4" />
+                                      </Button>
+                                      <Button
+                                        size="icon"
+                                        variant="ghost"
+                                        onClick={() => {
+                                          if (confirm(`Remove ${ranking.brand?.name || 'this brand'} from this GEO completely?`)) {
+                                            deleteRankingMutation.mutate(ranking.id);
+                                          }
+                                        }}
+                                        data-testid={`button-delete-ranking-${ranking.position}`}
+                                        title="Remove from GEO"
+                                      >
+                                        <Trash2 className="h-4 w-4" />
+                                      </Button>
+                                    </div>
                                   </TableCell>
                                 </TableRow>
                               ))
@@ -936,14 +1011,34 @@ export default function BrandRankings() {
                                 </a>
                               )}
                             </div>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => removeBrandMutation.mutate(ranking.id)}
-                              data-testid={`button-remove-brand-${ranking.brandId}`}
-                            >
-                              <X className="h-4 w-4" />
-                            </Button>
+                            <div className="flex gap-1">
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => {
+                                  if (confirm(`Promote ${ranking.brand?.name || 'this brand'} to Featured Brands?`)) {
+                                    promoteToFeaturedMutation.mutate(ranking.id);
+                                  }
+                                }}
+                                data-testid={`button-promote-brand-${ranking.brandId}`}
+                                title="Promote to Featured Brands"
+                              >
+                                <ArrowUp className="h-4 w-4" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => {
+                                  if (confirm(`Remove ${ranking.brand?.name || 'this brand'} from this GEO completely?`)) {
+                                    removeBrandMutation.mutate(ranking.id);
+                                  }
+                                }}
+                                data-testid={`button-remove-brand-${ranking.brandId}`}
+                                title="Remove from GEO"
+                              >
+                                <X className="h-4 w-4" />
+                              </Button>
+                            </div>
                           </div>
                         ))}
                       </div>

@@ -185,7 +185,7 @@ Preferred communication style: Simple, everyday language.
 
 **Purpose**: Batch analysis tool for ClickUp tasks to identify relationships with websites, brands, and Sub-IDs
 
-**Auto-Detection**: Each task's "*Target GEO" custom field is automatically extracted from ClickUp, allowing mixed-GEO batches in a single analysis
+**Auto-Detection**: Each task's "*Target GEO" and "*Publisher" custom fields are automatically extracted from ClickUp, allowing mixed-GEO batches in a single analysis
 
 **Workflow**:
 1. User pastes ClickUp task IDs (one per line or comma-separated)
@@ -193,14 +193,16 @@ Preferred communication style: Simple, everyday language.
    - Fetches task details and custom fields from ClickUp API
    - Extracts "*Target GEO" custom field (handles both string and object formats)
    - Maps GEO code (e.g., "USA", "UK") to database GEO via case-insensitive lookup
-   - Matches task name against website names in Sub-ID tracker
+   - Extracts "*Publisher" custom field to identify the website
+   - Matches "*Publisher" value against website names in Sub-ID tracker (with flexible matching)
+   - Falls back to task name matching if "*Publisher" is not set or no match found
    - Searches task name/description for featured brand names (top 10 for that task's specific GEO)
    - Checks if Sub-ID already exists for the task ID
 
 **Results Display**:
 - Task ID
 - Detected Target GEO (shows code badge or "Not set" if missing)
-- Website association (if detected from task name)
+- Website association (detected from "*Publisher" custom field or task name)
 - Brand match showing position and name (if found in top 10 for that task's GEO)
 - Sub-ID status (exists/not found)
 - Sub-ID value (if already created)

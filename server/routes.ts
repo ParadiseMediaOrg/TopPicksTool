@@ -1178,6 +1178,92 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Post brand rankings to ClickUp task
+  app.post("/api/reconcile-tasks/:taskId/post-brands", async (req, res) => {
+    try {
+      const apiKey = process.env.CLICKUP_API_KEY;
+      if (!apiKey) {
+        return res.status(500).json({ error: "ClickUp API key not configured" });
+      }
+
+      const { taskId } = req.params;
+      const { geoId } = req.body;
+
+      if (!geoId) {
+        return res.status(400).json({ error: "geoId is required" });
+      }
+
+      // Fetch GEO details
+      const geos = await storage.getGeos();
+      const geo = geos.find((g: any) => g.id === geoId);
+      if (!geo) {
+        return res.status(404).json({ error: "GEO not found" });
+      }
+
+      // Fetch all brand rankings for this GEO
+      const rankings = await storage.getRankingsByGeo(geoId);
+      const brands = await storage.getBrands();
+      const brandsById = new Map(brands.map((b: any) => [b.id, b]));
+
+      // Separate featured and non-featured brands
+      const featuredRankings = rankings
+        .filter((r: any) => r.position !== null)
+        .sort((a: any, b: any) => a.position! - b.position!);
+
+      // Validate that all featured brands have affiliate links
+      const missingLinks = featuredRankings.filter((r: any) => !r.affiliateLink);
+      if (missingLinks.length > 0) {
+        const brandNames = missingLinks
+          .map((r: any) => {
+            const brand = brandsById.get(r.brandId);
+            return brand ? `#${r.position} ${brand.name}` : `#${r.position}`;
+          })
+          .join(", ");
+        return res.status(400).json({ 
+          error: `Missing affiliate links for: ${brandNames}. Please add affiliate links in Brand Rankings before posting.` 
+        });
+      }
+
+      // Build the brand list comment
+      let commentText = `🥇 **Top Brands for ${geo.code}**\n\n`;
+      
+      featuredRankings.forEach((ranking: any) => {
+        const brand = brandsById.get(ranking.brandId);
+        if (brand && ranking.affiliateLink) {
+          commentText += `${ranking.position}. **${brand.name}**\n`;
+          commentText += `   ${ranking.affiliateLink}\n\n`;
+        }
+      });
+
+      // Post comment to ClickUp
+      const postResponse = await fetch(
+        `https://api.clickup.com/api/v2/task/${taskId}/comment`,
+        {
+          method: 'POST',
+          headers: {
+            'Authorization': apiKey,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            comment_text: commentText,
+            notify_all: false
+          }),
+        }
+      );
+
+      if (!postResponse.ok) {
+        const errorText = await postResponse.text();
+        throw new Error(`Failed to post comment: ${errorText}`);
+      }
+
+      const result = await postResponse.json();
+      res.json({ success: true, comment: result });
+    } catch (error: any) {
+      console.error("Error posting brands to ClickUp:", error);
+      res.status(500).json({ error: error.message || "Failed to post brands to ClickUp" });
+    }
+  });
+
   // GEO routes
   app.get("/api/geos", async (req, res) => {
     try {

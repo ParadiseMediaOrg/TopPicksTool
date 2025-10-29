@@ -104,6 +104,7 @@ export default function TaskReconciliation() {
   const [selectedGeoForBrands, setSelectedGeoForBrands] = useState<{ id: string; code: string; name: string } | null>(null);
   const [localBrands, setLocalBrands] = useState<RankingWithBrand[]>([]);
   const [creatingSubIds, setCreatingSubIds] = useState<Set<string>>(new Set());
+  const [postingBrands, setPostingBrands] = useState<Set<string>>(new Set());
   const [manualBrandSelections, setManualBrandSelections] = useState<Record<string, { position: number | null; brandName: string; brandId: string }>>({});
   const [manualGeoSelections, setManualGeoSelections] = useState<Record<string, string>>({}); // taskId -> geoId
 
@@ -369,6 +370,35 @@ export default function TaskReconciliation() {
     }
   };
 
+  const handlePostBrands = async (taskId: string, geoId: string) => {
+    setPostingBrands(prev => new Set(prev).add(taskId));
+
+    try {
+      const res = await apiRequest("POST", `/api/reconcile-tasks/${taskId}/post-brands`, {
+        geoId,
+      });
+
+      await res.json();
+
+      toast({
+        title: "Brands Posted",
+        description: "Brand rankings have been posted to ClickUp task.",
+      });
+    } catch (error: any) {
+      toast({
+        title: "Failed to Post Brands",
+        description: error.message || "An error occurred.",
+        variant: "destructive",
+      });
+    } finally {
+      setPostingBrands(prev => {
+        const next = new Set(prev);
+        next.delete(taskId);
+        return next;
+      });
+    }
+  };
+
   return (
     <div className="flex flex-col h-screen">
       <PageNav />
@@ -553,33 +583,56 @@ export default function TaskReconciliation() {
                         {result.subIdValue || <span className="text-muted-foreground">-</span>}
                       </TableCell>
                       <TableCell data-testid={`cell-actions-${index}`}>
-                        {!result.subIdExists && !result.error && !result.unmatchedGeoValue && (
-                          result.websiteId ? (
+                        <div className="flex flex-col gap-2">
+                          {/* Create Sub-ID Button */}
+                          {!result.subIdExists && !result.error && !result.unmatchedGeoValue && (
+                            result.websiteId ? (
+                              <Button
+                                size="sm"
+                                onClick={() => handleCreateSubId(result.taskId, result.websiteId!)}
+                                disabled={creatingSubIds.has(result.taskId)}
+                                data-testid={`button-create-subid-${index}`}
+                              >
+                                {creatingSubIds.has(result.taskId) ? (
+                                  <>
+                                    <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                                    Creating...
+                                  </>
+                                ) : (
+                                  <>
+                                    <Plus className="h-3 w-3 mr-1" />
+                                    Create Sub-ID
+                                  </>
+                                )}
+                              </Button>
+                            ) : result.websiteName ? (
+                              <div className="flex items-center gap-2 text-xs text-amber-600 dark:text-amber-500">
+                                <AlertTriangle className="h-3 w-3 flex-shrink-0" />
+                                <span>Add "{cleanWebsiteName(result.websiteName)}" to Sub-ID Tracker first</span>
+                              </div>
+                            ) : null
+                          )}
+                          
+                          {/* Post Brands Button */}
+                          {result.detectedGeo && !result.error && (
                             <Button
                               size="sm"
-                              onClick={() => handleCreateSubId(result.taskId, result.websiteId!)}
-                              disabled={creatingSubIds.has(result.taskId)}
-                              data-testid={`button-create-subid-${index}`}
+                              variant="secondary"
+                              onClick={() => handlePostBrands(result.taskId, result.detectedGeo!.id)}
+                              disabled={postingBrands.has(result.taskId)}
+                              data-testid={`button-post-brands-${index}`}
                             >
-                              {creatingSubIds.has(result.taskId) ? (
+                              {postingBrands.has(result.taskId) ? (
                                 <>
                                   <Loader2 className="h-3 w-3 mr-1 animate-spin" />
-                                  Creating...
+                                  Posting...
                                 </>
                               ) : (
-                                <>
-                                  <Plus className="h-3 w-3 mr-1" />
-                                  Create Sub-ID
-                                </>
+                                "Post Brands"
                               )}
                             </Button>
-                          ) : result.websiteName ? (
-                            <div className="flex items-center gap-2 text-xs text-amber-600 dark:text-amber-500">
-                              <AlertTriangle className="h-3 w-3 flex-shrink-0" />
-                              <span>Add "{cleanWebsiteName(result.websiteName)}" to Sub-ID Tracker first</span>
-                            </div>
-                          ) : null
-                        )}
+                          )}
+                        </div>
                       </TableCell>
                     </TableRow>
                   ))}

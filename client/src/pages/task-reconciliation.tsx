@@ -125,7 +125,7 @@ export default function TaskReconciliation() {
   const [taskIds, setTaskIds] = useState("");
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [results, setResults] = useState<ReconciliationResult[]>([]);
-  const [selectedGeoForBrands, setSelectedGeoForBrands] = useState<{ id: string; code: string; name: string } | null>(null);
+  const [selectedGeoForBrands, setSelectedGeoForBrands] = useState<{ id: string; code: string; name: string; listId: string; listName: string } | null>(null);
   const [localBrands, setLocalBrands] = useState<RankingWithBrand[]>([]);
   const [creatingSubIds, setCreatingSubIds] = useState<Set<string>>(new Set());
   const [postingBrands, setPostingBrands] = useState<Set<string>>(new Set());
@@ -235,8 +235,8 @@ export default function TaskReconciliation() {
     }
   };
 
-  const handleBrandBadgeClick = (geo: { id: string; code: string; name: string }) => {
-    setSelectedGeoForBrands(geo);
+  const handleBrandBadgeClick = (geo: { id: string; code: string; name: string }, listId: string, listName: string) => {
+    setSelectedGeoForBrands({ ...geo, listId, listName });
   };
 
   const handleManualGeoSelection = (taskId: string, geoId: string) => {
@@ -362,7 +362,7 @@ export default function TaskReconciliation() {
     });
   }, [results, allBrandListsQueries.data]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // When dialog opens or GEO changes, initialize local brands
+  // When dialog opens or GEO changes, initialize local brands filtered by list
   useEffect(() => {
     if (!selectedGeoForBrands) {
       return;
@@ -373,8 +373,9 @@ export default function TaskReconciliation() {
       return;
     }
 
-    // Combine rankings with brands
+    // Filter rankings to only show those from the selected brand list
     const rankingsWithBrands: RankingWithBrand[] = rankings
+      .filter((ranking) => ranking.listId === selectedGeoForBrands.listId)
       .map((ranking) => ({
         ...ranking,
         brand: brands.find((b) => b.id === ranking.brandId),
@@ -382,7 +383,7 @@ export default function TaskReconciliation() {
       .sort((a, b) => (a.position || 999) - (b.position || 999));
     
     setLocalBrands(rankingsWithBrands);
-  }, [selectedGeoForBrands?.id, rankingsLoading, brandsLoading]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [selectedGeoForBrands?.id, selectedGeoForBrands?.listId, rankingsLoading, brandsLoading]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Helper function to clean website name - removes *pm- prefix
   const cleanWebsiteName = (name: string | null): string | null => {
@@ -728,16 +729,24 @@ export default function TaskReconciliation() {
                                 {displayMatch ? (
                                   <Badge 
                                     variant="default" 
-                                    className={effectiveGeo ? "gap-1 cursor-pointer hover-elevate active-elevate-2 whitespace-nowrap" : "gap-1 whitespace-nowrap"}
-                                    onClick={effectiveGeo ? () => handleBrandBadgeClick(effectiveGeo) : undefined}
-                                    onKeyDown={effectiveGeo ? (e) => {
-                                      if (e.key === 'Enter' || e.key === ' ') {
-                                        e.preventDefault();
-                                        handleBrandBadgeClick(effectiveGeo);
+                                    className={effectiveGeo && effectiveListId ? "gap-1 cursor-pointer hover-elevate active-elevate-2 whitespace-nowrap" : "gap-1 whitespace-nowrap"}
+                                    onClick={effectiveGeo && effectiveListId ? () => {
+                                      const selectedList = availableBrandLists.find(l => l.id === effectiveListId);
+                                      if (selectedList) {
+                                        handleBrandBadgeClick(effectiveGeo, effectiveListId, selectedList.name);
                                       }
                                     } : undefined}
-                                    role={effectiveGeo ? "button" : undefined}
-                                    tabIndex={effectiveGeo ? 0 : undefined}
+                                    onKeyDown={effectiveGeo && effectiveListId ? (e) => {
+                                      if (e.key === 'Enter' || e.key === ' ') {
+                                        e.preventDefault();
+                                        const selectedList = availableBrandLists.find(l => l.id === effectiveListId);
+                                        if (selectedList) {
+                                          handleBrandBadgeClick(effectiveGeo, effectiveListId, selectedList.name);
+                                        }
+                                      }
+                                    } : undefined}
+                                    role={effectiveGeo && effectiveListId ? "button" : undefined}
+                                    tabIndex={effectiveGeo && effectiveListId ? 0 : undefined}
                                     data-testid={`badge-brand-match-${index}`}
                                   >
                                     {displayMatch.position !== null && displayMatch.position !== undefined 
@@ -898,7 +907,7 @@ export default function TaskReconciliation() {
         <DialogContent className="max-w-2xl max-h-[80vh] overflow-hidden flex flex-col" data-testid="dialog-brand-list">
           <DialogHeader>
             <DialogTitle>
-              Brand Rankings - {selectedGeoForBrands?.code} ({selectedGeoForBrands?.name})
+              {selectedGeoForBrands?.listName} Brands - {selectedGeoForBrands?.code} ({selectedGeoForBrands?.name})
             </DialogTitle>
             <p className="text-sm text-muted-foreground">
               Drag and drop to reorder (temporary view only - changes are not saved)

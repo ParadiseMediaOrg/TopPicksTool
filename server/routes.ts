@@ -1602,6 +1602,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.post("/api/rankings/bulk-update-positions", async (req, res) => {
+    try {
+      const { updates } = req.body;
+      if (!Array.isArray(updates)) {
+        return res.status(400).json({ error: "updates must be an array" });
+      }
+      
+      // Update each ranking's position
+      for (const update of updates) {
+        if (!update.id || typeof update.position !== 'number') {
+          return res.status(400).json({ error: "Each update must have id and position" });
+        }
+        await storage.updateRanking(update.id, { position: update.position });
+      }
+      
+      res.json({ success: true, updated: updates.length });
+    } catch (error: any) {
+      console.error("Error bulk updating positions:", error);
+      res.status(400).json({ error: error.message || "Failed to update positions" });
+    }
+  });
+
   // Helper: Normalize GEO value from ClickUp dropdown to database code
   const normalizeGeoValue = (rawValue: string): string | null => {
     if (!rawValue) return null;

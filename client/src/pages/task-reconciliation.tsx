@@ -523,51 +523,30 @@ export default function TaskReconciliation() {
                             );
                           }
 
-                          // No match - show two-step selection: GEO then Brand
-                          const selectedGeoId = manualGeoId || result.detectedGeo?.id;
-                          const allBrands = selectedGeoId ? getAllBrandsForGeo(selectedGeoId) : [];
-
+                          // No match - show GEO selector to open brand list
                           return (
-                            <div className="flex items-center gap-2">
-                              {/* Step 1: GEO Selector */}
-                              <Select
-                                value={manualGeoId || ""}
-                                onValueChange={(value) => handleManualGeoSelection(result.taskId, value)}
-                              >
-                                <SelectTrigger className="w-28 h-8" data-testid={`select-geo-${index}`}>
-                                  <SelectValue placeholder="Select GEO..." />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  {allGeos.map((geo) => (
-                                    <SelectItem key={geo.id} value={geo.id}>
-                                      {geo.code}
-                                    </SelectItem>
-                                  ))}
-                                </SelectContent>
-                              </Select>
-
-                              {/* Step 2: Brand Selector (only shown after GEO is selected) */}
-                              {selectedGeoId && allBrands.length > 0 && (
-                                <Select
-                                  value={manualMatch ? `${manualMatch.position ?? 'null'}:${manualMatch.brandName}:${manualMatch.brandId}` : ""}
-                                  onValueChange={(value) => handleManualBrandSelection(result.taskId, value)}
-                                >
-                                  <SelectTrigger className="w-48 h-8" data-testid={`select-brand-${index}`}>
-                                    <SelectValue placeholder="Select brand..." />
-                                  </SelectTrigger>
-                                  <SelectContent>
-                                    {allBrands.map((brand) => (
-                                      <SelectItem 
-                                        key={brand.brandId} 
-                                        value={`${brand.position ?? 'null'}:${brand.brandName}:${brand.brandId}`}
-                                      >
-                                        {brand.position !== null ? `#${brand.position} ` : ''}{brand.brandName}
-                                      </SelectItem>
-                                    ))}
-                                  </SelectContent>
-                                </Select>
-                              )}
-                            </div>
+                            <Select
+                              value={manualGeoId || ""}
+                              onValueChange={(value) => {
+                                if (value) {
+                                  const selectedGeo = allGeos.find(g => g.id === value);
+                                  if (selectedGeo) {
+                                    handleBrandBadgeClick(selectedGeo);
+                                  }
+                                }
+                              }}
+                            >
+                              <SelectTrigger className="w-40 h-8" data-testid={`select-geo-${index}`}>
+                                <SelectValue placeholder="Select GEO..." />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {allGeos.map((geo) => (
+                                  <SelectItem key={geo.id} value={geo.id}>
+                                    {geo.code} - {geo.name}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
                           );
                         })()}
                       </TableCell>

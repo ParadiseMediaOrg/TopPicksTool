@@ -5,6 +5,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { PageNav } from "@/components/page-nav";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
@@ -103,6 +104,12 @@ export default function TaskReconciliation() {
   const [selectedGeoForBrands, setSelectedGeoForBrands] = useState<{ id: string; code: string; name: string } | null>(null);
   const [localBrands, setLocalBrands] = useState<RankingWithBrand[]>([]);
   const [creatingSubIds, setCreatingSubIds] = useState<Set<string>>(new Set());
+  const [manualBrandSelections, setManualBrandSelections] = useState<Record<string, { position: number; brandName: string }>>({});
+
+  // Fetch all GEOs to get rankings for each
+  const { data: allGeos = [] } = useQuery<Array<{ id: string; code: string; name: string }>>({
+    queryKey: ["/api/geos"],
+  });
 
   // Fetch rankings for the selected GEO
   const { data: rankings = [], isLoading: rankingsLoading } = useQuery<GeoBrandRanking[]>({
@@ -114,6 +121,42 @@ export default function TaskReconciliation() {
   const { data: brands = [], isLoading: brandsLoading } = useQuery<Brand[]>({
     queryKey: ["/api/brands"],
   });
+
+  // Fetch all rankings for all GEOs (for manual brand selection)
+  const allRankingsQueries = useQuery<Record<string, GeoBrandRanking[]>>({
+    queryKey: ["/api/all-geo-rankings"],
+    queryFn: async () => {
+      const rankingsByGeo: Record<string, GeoBrandRanking[]> = {};
+      
+      for (const geo of allGeos) {
+        const res = await fetch(`/api/geos/${geo.id}/rankings`);
+        if (res.ok) {
+          const geoRankings = await res.json();
+          rankingsByGeo[geo.id] = geoRankings;
+        }
+      }
+      
+      return rankingsByGeo;
+    },
+    enabled: allGeos.length > 0 && brands.length > 0,
+  });
+
+  // Helper to get featured brands for a specific GEO
+  const getFeaturedBrandsForGeo = (geoId: string): Array<{ position: number; brandName: string; brandId: string }> => {
+    const geoRankings = allRankingsQueries.data?.[geoId] || [];
+    
+    return geoRankings
+      .filter(r => r.position !== null && r.position >= 1 && r.position <= 10)
+      .map(r => {
+        const brand = brands.find(b => b.id === r.brandId);
+        return {
+          position: r.position!,
+          brandName: brand?.name || "Unknown",
+          brandId: r.brandId,
+        };
+      })
+      .sort((a, b) => a.position - b.position);
+  };
 
   // Setup drag and drop sensors
   const sensors = useSensors(
@@ -137,6 +180,27 @@ export default function TaskReconciliation() {
 
   const handleBrandBadgeClick = (geo: { id: string; code: string; name: string }) => {
     setSelectedGeoForBrands(geo);
+  };
+
+  const handleManualBrandSelection = (taskId: string, brandValue: string) => {
+    if (!brandValue) {
+      // Clear selection
+      setManualBrandSelections(prev => {
+        const next = { ...prev };
+        delete next[taskId];
+        return next;
+      });
+      return;
+    }
+
+    // Parse the value which is in format "position:brandName"
+    const [positionStr, brandName] = brandValue.split(":");
+    const position = parseInt(positionStr, 10);
+
+    setManualBrandSelections(prev => ({
+      ...prev,
+      [taskId]: { position, brandName },
+    }));
   };
 
   // When dialog opens or GEO changes, initialize local brands
@@ -384,30 +448,73 @@ export default function TaskReconciliation() {
                         )}
                       </TableCell>
                       <TableCell data-testid={`cell-brand-match-${index}`}>
-                        {result.brandMatch && result.detectedGeo ? (
-                          <Badge 
-                            variant="default" 
-                            className="gap-1 cursor-pointer hover-elevate active-elevate-2"
-                            onClick={() => handleBrandBadgeClick(result.detectedGeo!)}
-                            onKeyDown={(e) => {
-                              if (e.key === 'Enter' || e.key === ' ') {
-                                e.preventDefault();
-                                handleBrandBadgeClick(result.detectedGeo!);
-                              }
-                            }}
-                            role="button"
-                            tabIndex={0}
-                            data-testid={`badge-brand-match-${index}`}
-                          >
-                            #{result.brandMatch.position} {result.brandMatch.brandName}
-                          </Badge>
-                        ) : result.brandMatch ? (
-                          <Badge variant="default" className="gap-1">
-                            #{result.brandMatch.position} {result.brandMatch.brandName}
-                          </Badge>
-                        ) : (
-                          <span className="text-muted-foreground text-sm">No match</span>
-                        )}
+                        {(() => {
+                          // Check if there's an automatic match
+                          const autoMatch = result.brandMatch;
+                          // Check if there's a manual selection
+                          const manualMatch = manualBrandSelections[result.taskId];
+                          // Get the final match to display (manual overrides auto)
+                          const displayMatch = manualMatch || autoMatch;
+
+                          if (displayMatch && result.detectedGeo) {
+                            return (
+                              <Badge 
+                                variant="default" 
+                                className="gap-1 cursor-pointer hover-elevate active-elevate-2"
+                                onClick={() => handleBrandBadgeClick(result.detectedGeo!)}
+                                onKeyDown={(e) => {
+                                  if (e.key === 'Enter' || e.key === ' ') {
+                                    e.preventDefault();
+                                    handleBrandBadgeClick(result.detectedGeo!);
+                                  }
+                                }}
+                                role="button"
+                                tabIndex={0}
+                                data-testid={`badge-brand-match-${index}`}
+                              >
+                                #{displayMatch.position} {displayMatch.brandName}
+                              </Badge>
+                            );
+                          }
+
+                          if (displayMatch) {
+                            return (
+                              <Badge variant="default" className="gap-1">
+                                #{displayMatch.position} {displayMatch.brandName}
+                              </Badge>
+                            );
+                          }
+
+                          // No match - show dropdown if GEO is detected
+                          if (result.detectedGeo) {
+                            const featuredBrands = getFeaturedBrandsForGeo(result.detectedGeo.id);
+                            
+                            if (featuredBrands.length > 0) {
+                              return (
+                                <Select
+                                  value={manualMatch ? `${manualMatch.position}:${manualMatch.brandName}` : ""}
+                                  onValueChange={(value) => handleManualBrandSelection(result.taskId, value)}
+                                >
+                                  <SelectTrigger className="w-48 h-8" data-testid={`select-brand-${index}`}>
+                                    <SelectValue placeholder="Select brand..." />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    {featuredBrands.map((brand) => (
+                                      <SelectItem 
+                                        key={brand.brandId} 
+                                        value={`${brand.position}:${brand.brandName}`}
+                                      >
+                                        #{brand.position} {brand.brandName}
+                                      </SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
+                              );
+                            }
+                          }
+
+                          return <span className="text-muted-foreground text-sm">No match</span>;
+                        })()}
                       </TableCell>
                       <TableCell data-testid={`cell-subid-status-${index}`}>
                         {result.subIdExists ? (

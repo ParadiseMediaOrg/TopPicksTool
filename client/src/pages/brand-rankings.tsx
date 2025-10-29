@@ -815,11 +815,7 @@ export default function BrandRankings() {
                                       <Button
                                         size="icon"
                                         variant="ghost"
-                                        onClick={() => {
-                                          if (confirm(`Move ${ranking.brand?.name || 'this brand'} to Other Brands?`)) {
-                                            moveToOtherBrandsMutation.mutate(ranking.id);
-                                          }
-                                        }}
+                                        onClick={() => moveToOtherBrandsMutation.mutate(ranking.id)}
                                         data-testid={`button-move-to-other-${ranking.position}`}
                                         title="Move to Other Brands"
                                       >
@@ -1015,11 +1011,7 @@ export default function BrandRankings() {
                               <Button
                                 variant="ghost"
                                 size="icon"
-                                onClick={() => {
-                                  if (confirm(`Promote ${ranking.brand?.name || 'this brand'} to Featured Brands?`)) {
-                                    promoteToFeaturedMutation.mutate(ranking.id);
-                                  }
-                                }}
+                                onClick={() => promoteToFeaturedMutation.mutate(ranking.id)}
                                 data-testid={`button-promote-brand-${ranking.brandId}`}
                                 title="Promote to Featured Brands"
                               >

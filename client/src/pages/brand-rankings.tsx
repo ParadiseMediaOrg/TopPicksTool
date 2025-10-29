@@ -352,6 +352,28 @@ export default function BrandRankings() {
     },
   });
 
+  // Delete Ranking mutation
+  const deleteRankingMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const res = await apiRequest("DELETE", `/api/rankings/${id}`);
+      return await res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/geos", selectedGeoId, "rankings"] });
+      toast({
+        title: "Brand Removed",
+        description: "Brand has been removed from rankings.",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to remove brand from rankings",
+        variant: "destructive",
+      });
+    },
+  });
+
   // Reorder GEOs mutation
   const reorderGeosMutation = useMutation({
     mutationFn: async (geoIds: string[]) => {
@@ -689,13 +711,14 @@ export default function BrandRankings() {
                             <TableHead className="w-20">Position</TableHead>
                             <TableHead>Brand</TableHead>
                             <TableHead>Affiliate Link</TableHead>
+                            {!isEditMode && <TableHead className="w-20">Actions</TableHead>}
                           </TableRow>
                         </TableHeader>
                         <TableBody>
                           {!isEditMode ? (
                             featuredRankings.length === 0 ? (
                               <TableRow>
-                                <TableCell colSpan={3} className="text-center text-muted-foreground py-8">
+                                <TableCell colSpan={4} className="text-center text-muted-foreground py-8">
                                   No rankings yet. Click "Edit Rankings" to add brands.
                                 </TableCell>
                               </TableRow>
@@ -710,6 +733,20 @@ export default function BrandRankings() {
                                         {ranking.affiliateLink}
                                       </a>
                                     ) : "-"}
+                                  </TableCell>
+                                  <TableCell data-testid={`cell-actions-${ranking.position}`}>
+                                    <Button
+                                      size="icon"
+                                      variant="ghost"
+                                      onClick={() => {
+                                        if (confirm(`Remove ${ranking.brand?.name || 'this brand'} from position #${ranking.position}?`)) {
+                                          deleteRankingMutation.mutate(ranking.id);
+                                        }
+                                      }}
+                                      data-testid={`button-delete-ranking-${ranking.position}`}
+                                    >
+                                      <Trash2 className="h-4 w-4" />
+                                    </Button>
                                   </TableCell>
                                 </TableRow>
                               ))

@@ -1706,6 +1706,93 @@ export async function registerRoutes(app: Express): Promise<Server> {
       'KAZ': 'KZ',
       'KAZAKHSTAN': 'KZ',
       '.KZ': 'KZ',
+      
+      // Africa
+      'ZA': 'ZA',
+      'ZAF': 'ZA',
+      'SOUTHAFRICA': 'ZA',
+      '.ZA': 'ZA',
+      
+      'NG': 'NG',
+      'NGA': 'NG',
+      'NIGERIA': 'NG',
+      '.NG': 'NG',
+      
+      'KE': 'KE',
+      'KEN': 'KE',
+      'KENYA': 'KE',
+      '.KE': 'KE',
+      
+      'EG': 'EG',
+      'EGY': 'EG',
+      'EGYPT': 'EG',
+      '.EG': 'EG',
+      
+      'MA': 'MA',
+      'MAR': 'MA',
+      'MOROCCO': 'MA',
+      '.MA': 'MA',
+      
+      'DZ': 'DZ',
+      'DZA': 'DZ',
+      'ALGERIA': 'DZ',
+      '.DZ': 'DZ',
+      
+      'TN': 'TN',
+      'TUN': 'TN',
+      'TUNISIA': 'TN',
+      '.TN': 'TN',
+      
+      'GH': 'GH',
+      'GHA': 'GH',
+      'GHANA': 'GH',
+      '.GH': 'GH',
+      
+      'TZ': 'TZ',
+      'TZA': 'TZ',
+      'TANZANIA': 'TZ',
+      '.TZ': 'TZ',
+      
+      'UG': 'UG',
+      'UGA': 'UG',
+      'UGANDA': 'UG',
+      '.UG': 'UG',
+      
+      'ZW': 'ZW',
+      'ZWE': 'ZW',
+      'ZIMBABWE': 'ZW',
+      '.ZW': 'ZW',
+      
+      'ET': 'ET',
+      'ETH': 'ET',
+      'ETHIOPIA': 'ET',
+      '.ET': 'ET',
+      
+      // Oceania
+      'NZ': 'NZ',
+      'NZL': 'NZ',
+      'NEWZEALAND': 'NZ',
+      '.NZ': 'NZ',
+      
+      'PG': 'PG',
+      'PNG': 'PG',
+      'PAPUANEWGUINEA': 'PG',
+      '.PG': 'PG',
+      
+      'FJ': 'FJ',
+      'FJI': 'FJ',
+      'FIJI': 'FJ',
+      '.FJ': 'FJ',
+      
+      'WS': 'WS',
+      'WSM': 'WS',
+      'SAMOA': 'WS',
+      '.WS': 'WS',
+      
+      'TO': 'TO',
+      'TON': 'TO',
+      'TONGA': 'TO',
+      '.TO': 'TO',
     };
     
     // Step 1: Normalize the raw value

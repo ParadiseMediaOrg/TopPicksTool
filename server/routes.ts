@@ -1618,7 +1618,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
                   
                   // Try to match to a website in our database for the websiteId
                   if (!result.websiteId) {
-                    const publisherNormalized = normalizeForMatching(publisherValue);
+                    // Remove *pm- prefix if present for matching
+                    const cleanedPublisher = publisherValue.replace(/^\*pm-\s*/i, '');
+                    const publisherNormalized = normalizeForMatching(cleanedPublisher);
                     
                     // First, try exact match (most reliable)
                     const exactMatch = websites.find(w => 
@@ -1630,7 +1632,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
                     } else {
                       // If no exact match, look for word-boundary matches
                       // Common filler words to ignore
-                      const fillerWords = new Set(['publisher', 'site', 'casino', 'poker', 'betting', 'the', 'a', 'an']);
+                      const fillerWords = new Set(['publisher', 'site', 'casino', 'poker', 'betting', 'the', 'a', 'an', 'pm']);
                       
                       const publisherWords = publisherNormalized.split(/\s+/).filter(w => !fillerWords.has(w));
                       const potentialMatches = websites.filter(w => {

@@ -208,8 +208,9 @@ export default function BrandRankings() {
 
   // Auto-select first brand list when GEO changes
   useEffect(() => {
-    if (selectedGeoId && brandLists.length > 0 && !selectedListId) {
-      // Auto-select the first brand list
+    if (selectedGeoId && brandLists.length > 0) {
+      // Always select the first brand list for the selected GEO
+      // This ensures that switching GEOs loads the default list
       setSelectedListId(brandLists[0].id);
     } else if (selectedGeoId && brandLists.length === 0 && !isLoadingLists) {
       // No brand lists for this GEO - clear selected list
@@ -218,7 +219,7 @@ export default function BrandRankings() {
       // GEO was deselected - clear list selection
       setSelectedListId(null);
     }
-  }, [selectedGeoId, brandLists, selectedListId, isLoadingLists]);
+  }, [selectedGeoId, brandLists, isLoadingLists]);
 
   // Filter GEOs by search query
   const filteredGeos = geos.filter((geo) => {

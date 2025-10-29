@@ -77,19 +77,19 @@ function SortableBrandItem({ brand, index }: SortableBrandItemProps) {
     <div
       ref={setNodeRef}
       style={style}
-      className="flex items-center gap-3 p-3 bg-card border rounded-md hover-elevate"
+      className="flex items-start gap-3 p-3 bg-card border rounded-md hover-elevate"
       data-testid={`sortable-brand-${index}`}
     >
-      <div className="flex items-center gap-2 cursor-grab active:cursor-grabbing" {...attributes} {...listeners}>
+      <div className="flex items-center gap-2 cursor-grab active:cursor-grabbing pt-1" {...attributes} {...listeners}>
         <GripVertical className="h-4 w-4 text-muted-foreground" />
       </div>
-      <div className="flex items-center justify-center w-8 h-8 rounded-md bg-primary/10 text-primary font-semibold text-sm">
+      <div className="flex items-center justify-center min-w-[2rem] h-8 px-2 rounded-md bg-primary/10 text-primary font-semibold tabular-nums flex-shrink-0">
         {index + 1}
       </div>
-      <div className="flex-1">
+      <div className="flex-1 min-w-0">
         <div className="font-medium">{brand.brand?.name || "Unknown Brand"}</div>
         {brand.affiliateLink && (
-          <div className="text-xs text-muted-foreground truncate">{brand.affiliateLink}</div>
+          <div className="text-xs text-muted-foreground break-all">{brand.affiliateLink}</div>
         )}
       </div>
     </div>

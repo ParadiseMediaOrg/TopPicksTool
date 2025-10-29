@@ -5,9 +5,11 @@
 A web-based application for managing unique tracking codes (Sub-IDs) across multiple websites and brand rankings by geographic region. The system includes three main modules:
 
 1. **Sub-ID Tracker**: Manages unique tracking codes across multiple websites with customizable format patterns, ClickUp CMS integration, and affiliate link management
-2. **Brand Rankings**: Maintains brand lists per geographic region (GEO):
-   - **Featured Brands**: Top 10 ranked brands (positions 1-10) with affiliate link tracking
-   - **Other Brands**: Unlimited non-featured brands per GEO for organization and tracking
+2. **Brand Rankings**: Maintains multiple brand lists per geographic region (GEO):
+   - Each GEO can have multiple named brand lists (e.g., "Sports Betting", "Casino")
+   - **Featured Brands**: Top 10 ranked brands (positions 1-10) per list with affiliate link tracking
+   - **Other Brands**: Unlimited non-featured brands per list for organization and tracking
+   - Users can create, rename, and delete brand lists within each GEO
 3. **Top Picks Tool**: Cross-references ClickUp task IDs against brand rankings and Sub-ID tracker to identify:
    - Website associations (matched from task names)
    - Featured brand matches (positions 1-10) for selected GEO
@@ -96,12 +98,18 @@ Preferred communication style: Simple, everyday language.
   - Foreign key constraint with cascade delete to maintain referential integrity
 - **GEOs Table**: Stores geographic regions with code, name, and sort order
 - **Brands Table**: Global brand directory with name, default URL, and status
-- **GeoBrandRankings Table**: Junction table for GEO-Brand relationships with position and affiliate link data
+- **BrandLists Table**: Stores named brand lists per GEO
+  - Each GEO can have multiple brand lists (e.g., "Sports Betting", "Casino")
+  - Includes GEO ID, list name, and sort order
+  - Unique constraint on (geoId, name) to prevent duplicate list names per GEO
+  - Foreign key to GEOs with cascade delete
+- **GeoBrandRankings Table**: Junction table linking brand lists to brands with rankings
+  - Links to both GEO and BrandList (for efficient querying)
   - Position (nullable): 1-10 for featured brands, null for non-featured brands
   - Optional affiliate link, timestamp
-  - Unique constraints on (geoId, position) when position is not null, and (geoId, brandId) to prevent duplicates
-  - Foreign keys to GEOs and Brands with cascade delete
-  - Supports both featured (top 10 ranked) and unlimited non-featured brands per GEO
+  - Unique constraints on (listId, position) when position is not null, and (listId, brandId) to prevent duplicates
+  - Foreign keys to GEOs, BrandLists, and Brands with cascade delete
+  - Supports both featured (top 10 ranked) and unlimited non-featured brands per list
 - UUID-based primary keys generated via `gen_random_uuid()`
 - Immutability feature prevents deletion of websites with marked Sub-IDs
 
@@ -210,14 +218,17 @@ Preferred communication style: Simple, everyday language.
      - Requires exact word-by-word equality (no substring matches)
      - Only accepts unambiguous single match
    - Falls back to task name matching if "*Publisher" is not set, ambiguous, or no match found
-   - Searches task name/description for featured brand names (top 10 for that task's specific GEO)
+   - Fetches all brand lists for the detected GEO and automatically selects the first list
+   - Searches task name/description for featured brand names (top 10 for that task's specific brand list)
    - Checks if Sub-ID already exists for the task ID
 
 **Results Display**:
 - Task ID
 - Detected Target GEO (shows code badge or "Not set" if missing)
+- Manual GEO selector (compact 2-letter code display) for overriding auto-detected GEO
+- Brand list selector for choosing which list to use for brand matching
 - Website association (detected from "*Publisher" custom field or task name, cleaned to remove *pm- prefix)
-- Brand match showing position and name (if found in top 10 for that task's GEO)
+- Brand match showing position and name (if found in top 10 for that task's specific brand list)
 - Sub-ID status (exists/not found)
 - Sub-ID value (if already created)
 - Error messages for ClickUp API failures

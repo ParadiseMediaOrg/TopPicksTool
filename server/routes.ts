@@ -1329,13 +1329,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           if (existingSubId) {
             result.subIdExists = true;
             result.subIdValue = existingSubId.value;
-            
-            // Find the website for this Sub-ID
-            const website = websites.find(w => w.id === existingSubId.websiteId);
-            if (website) {
-              result.websiteName = website.name;
-              result.websiteId = website.id;
-            }
+            result.websiteId = existingSubId.websiteId;
           }
 
           // Fetch ClickUp task to get custom fields and task data
@@ -1404,47 +1398,50 @@ export async function registerRoutes(app: Express): Promise<Server> {
                     .trim();
                 };
                 
-                // Try to match website using *Publisher custom field first
-                if (publisherValue && !result.websiteName) {
-                  const publisherNormalized = normalizeForMatching(publisherValue);
+                // Always use *Publisher custom field for website display
+                if (publisherValue) {
+                  // Set the display name to the raw *Publisher value
+                  result.websiteName = publisherValue;
                   
-                  // First, try exact match (most reliable)
-                  const exactMatch = websites.find(w => 
-                    normalizeForMatching(w.name) === publisherNormalized
-                  );
-                  
-                  if (exactMatch) {
-                    result.websiteName = exactMatch.name;
-                    result.websiteId = exactMatch.id;
-                  } else {
-                    // If no exact match, look for word-boundary matches
-                    // Common filler words to ignore
-                    const fillerWords = new Set(['publisher', 'site', 'casino', 'poker', 'betting', 'the', 'a', 'an']);
+                  // Try to match to a website in our database for the websiteId
+                  if (!result.websiteId) {
+                    const publisherNormalized = normalizeForMatching(publisherValue);
                     
-                    const publisherWords = publisherNormalized.split(/\s+/).filter(w => !fillerWords.has(w));
-                    const potentialMatches = websites.filter(w => {
-                      const websiteNormalized = normalizeForMatching(w.name);
-                      const websiteWords = websiteNormalized.split(/\s+/).filter(w => !fillerWords.has(w));
+                    // First, try exact match (most reliable)
+                    const exactMatch = websites.find(w => 
+                      normalizeForMatching(w.name) === publisherNormalized
+                    );
+                    
+                    if (exactMatch) {
+                      result.websiteId = exactMatch.id;
+                    } else {
+                      // If no exact match, look for word-boundary matches
+                      // Common filler words to ignore
+                      const fillerWords = new Set(['publisher', 'site', 'casino', 'poker', 'betting', 'the', 'a', 'an']);
                       
-                      // Skip if no meaningful words
-                      if (websiteWords.length === 0 || publisherWords.length === 0) return false;
+                      const publisherWords = publisherNormalized.split(/\s+/).filter(w => !fillerWords.has(w));
+                      const potentialMatches = websites.filter(w => {
+                        const websiteNormalized = normalizeForMatching(w.name);
+                        const websiteWords = websiteNormalized.split(/\s+/).filter(w => !fillerWords.has(w));
+                        
+                        // Skip if no meaningful words
+                        if (websiteWords.length === 0 || publisherWords.length === 0) return false;
+                        
+                        // Check if all website words appear exactly in publisher words (in order)
+                        let publisherIdx = 0;
+                        for (const websiteWord of websiteWords) {
+                          const found = publisherWords.slice(publisherIdx).findIndex(pw => pw === websiteWord);
+                          if (found === -1) return false;
+                          publisherIdx += found + 1;
+                        }
+                        return true;
+                      });
                       
-                      // Check if all website words appear exactly in publisher words (in order)
-                      let publisherIdx = 0;
-                      for (const websiteWord of websiteWords) {
-                        const found = publisherWords.slice(publisherIdx).findIndex(pw => pw === websiteWord);
-                        if (found === -1) return false;
-                        publisherIdx += found + 1;
+                      // Only accept if exactly one unambiguous match
+                      if (potentialMatches.length === 1) {
+                        result.websiteId = potentialMatches[0].id;
                       }
-                      return true;
-                    });
-                    
-                    // Only accept if exactly one unambiguous match
-                    if (potentialMatches.length === 1) {
-                      result.websiteName = potentialMatches[0].name;
-                      result.websiteId = potentialMatches[0].id;
                     }
-                    // Otherwise fall back to task name matching
                   }
                 }
                 

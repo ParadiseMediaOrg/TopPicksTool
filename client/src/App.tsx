@@ -5,7 +5,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import Dashboard from "@/pages/dashboard";
 import BrandRankings from "@/pages/brand-rankings";
-import TaskReconciliation from "@/pages/task-reconciliation";
+import TopPicksTool from "@/pages/task-reconciliation";
 import NotFound from "@/pages/not-found";
 
 function Router() {
@@ -13,7 +13,7 @@ function Router() {
     <Switch>
       <Route path="/" component={Dashboard} />
       <Route path="/brand-rankings" component={BrandRankings} />
-      <Route path="/task-reconciliation" component={TaskReconciliation} />
+      <Route path="/top-picks" component={TopPicksTool} />
       <Route component={NotFound} />
     </Switch>
   );

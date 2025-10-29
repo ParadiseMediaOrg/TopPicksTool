@@ -8,7 +8,7 @@ A web-based application for managing unique tracking codes (Sub-IDs) across mult
 2. **Brand Rankings**: Maintains brand lists per geographic region (GEO):
    - **Featured Brands**: Top 10 ranked brands (positions 1-10) with affiliate link tracking
    - **Other Brands**: Unlimited non-featured brands per GEO for organization and tracking
-3. **Task Reconciliation**: Cross-references ClickUp task IDs against brand rankings and Sub-ID tracker to identify:
+3. **Top Picks Tool**: Cross-references ClickUp task IDs against brand rankings and Sub-ID tracker to identify:
    - Website associations (matched from task names)
    - Featured brand matches (positions 1-10) for selected GEO
    - Existing Sub-IDs linked to task IDs
@@ -181,7 +181,7 @@ Preferred communication style: Simple, everyday language.
 - Comment buttons remain unlocked to allow reposting/updates
 - Duplicate detection prevents posting same Sub-ID multiple times to same task
 
-### Task Reconciliation Module
+### Top Picks Tool Module
 
 **Purpose**: Batch analysis tool for ClickUp tasks to identify relationships with websites, brands, and Sub-IDs
 
@@ -232,4 +232,4 @@ Preferred communication style: Simple, everyday language.
 - Brand Rankings database for featured brands per GEO
 - Global Brands table for brand name matching
 
-**Navigation**: Accessible from dashboard header via "Task Reconciliation" button
+**Navigation**: Accessible from dashboard header via "Top Picks Tool" button

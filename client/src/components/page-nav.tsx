@@ -43,14 +43,14 @@ export function PageNav({ title, showSidebarToggle = false }: PageNavProps) {
           </Button>
           
           <Button
-            variant={location === "/task-reconciliation" ? "default" : "outline"}
+            variant={location === "/top-picks" ? "default" : "outline"}
             size="sm"
             asChild
-            data-testid="link-task-reconciliation"
+            data-testid="link-top-picks"
           >
-            <Link href="/task-reconciliation">
+            <Link href="/top-picks">
               <GitCompare className="h-4 w-4 mr-2" />
-              Task Reconciliation
+              Top Picks Tool
             </Link>
           </Button>
         </div>

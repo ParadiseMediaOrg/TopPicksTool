@@ -1359,23 +1359,51 @@ export async function registerRoutes(app: Express): Promise<Server> {
                     field.name === '*Target GEO'
                   );
                   
-                  if (targetGeoField && targetGeoField.value) {
-                    // The value might be a string like "USA" or an object with nested properties
-                    const geoValue = typeof targetGeoField.value === 'string' 
-                      ? targetGeoField.value 
-                      : targetGeoField.value.name || targetGeoField.value.value;
+                  if (targetGeoField) {
+                    console.log(`[ClickUp Task ${taskId}] *Target GEO field found, type: ${targetGeoField.type}, value:`, targetGeoField.value);
                     
-                    if (geoValue) {
-                      const geoCode = geoValue.toUpperCase();
-                      const matchedGeo = geosByCode.get(geoCode);
-                      if (matchedGeo) {
-                        taskGeoId = matchedGeo.id;
-                        result.detectedGeo = {
-                          code: matchedGeo.code,
-                          name: matchedGeo.name,
-                        };
+                    let geoValue: string | null = null;
+                    
+                    if (targetGeoField.value !== null && targetGeoField.value !== undefined) {
+                      // Handle dropdown/select fields (value is a numeric ID)
+                      if (targetGeoField.type === 'drop_down' || targetGeoField.type === 'labels') {
+                        // Value is an ID that references an option
+                        const options = targetGeoField.type_config?.options || [];
+                        const selectedOption = options.find((opt: any) => opt.id === targetGeoField.value || opt.orderindex === targetGeoField.value);
+                        
+                        if (selectedOption) {
+                          geoValue = selectedOption.name || selectedOption.label || null;
+                          console.log(`[ClickUp Task ${taskId}] GEO extracted from dropdown: "${geoValue}"`);
+                        } else {
+                          console.log(`[ClickUp Task ${taskId}] Could not find option for GEO value: ${targetGeoField.value}`);
+                        }
+                      } else {
+                        // Handle text fields or other field types
+                        geoValue = typeof targetGeoField.value === 'string' 
+                          ? targetGeoField.value 
+                          : targetGeoField.value.name || targetGeoField.value.value || null;
+                        
+                        console.log(`[ClickUp Task ${taskId}] GEO extracted: "${geoValue}"`);
                       }
+                      
+                      if (geoValue) {
+                        const geoCode = geoValue.toUpperCase();
+                        const matchedGeo = geosByCode.get(geoCode);
+                        if (matchedGeo) {
+                          taskGeoId = matchedGeo.id;
+                          result.detectedGeo = {
+                            code: matchedGeo.code,
+                            name: matchedGeo.name,
+                          };
+                        } else {
+                          console.log(`[ClickUp Task ${taskId}] Could not match GEO "${geoValue}" to database`);
+                        }
+                      }
+                    } else {
+                      console.log(`[ClickUp Task ${taskId}] *Target GEO field has no value`);
                     }
+                  } else {
+                    console.log(`[ClickUp Task ${taskId}] *Target GEO field not found`);
                   }
                   
                   // Extract *Publisher

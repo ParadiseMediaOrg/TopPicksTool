@@ -718,30 +718,6 @@ export default function TaskReconciliation() {
                                   <span className="text-muted-foreground text-sm">No match</span>
                                 )}
                               </div>
-                              
-                              {/* Manual brand selection dropdown */}
-                              {effectiveListId && (
-                                <Select
-                                  value={manualMatch ? `${manualMatch.position || 'null'}:${manualMatch.brandName}:${manualMatch.brandId}` : "auto"}
-                                  onValueChange={(value) => handleManualBrandSelection(result.taskId, value)}
-                                  data-testid={`select-manual-brand-${index}`}
-                                >
-                                  <SelectTrigger className="h-7 text-xs w-full">
-                                    <SelectValue placeholder="Override brand..." />
-                                  </SelectTrigger>
-                                  <SelectContent>
-                                    <SelectItem value="auto">Auto (Top Brand)</SelectItem>
-                                    {getAllBrandsForList(effectiveListId).map((brand) => (
-                                      <SelectItem 
-                                        key={brand.brandId} 
-                                        value={`${brand.position || 'null'}:${brand.brandName}:${brand.brandId}`}
-                                      >
-                                        {brand.position !== null ? `#${brand.position} ` : ''}{brand.brandName}
-                                      </SelectItem>
-                                    ))}
-                                  </SelectContent>
-                                </Select>
-                              )}
                             </div>
                           );
                         })()}

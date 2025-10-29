@@ -528,15 +528,27 @@ export default function TaskReconciliation() {
                             ? allGeos.find(g => g.id === manualGeoId) 
                             : result.detectedGeo;
                           
-                          // Get the final match to display (manual overrides auto)
-                          let displayMatch = manualMatch || autoMatch;
-
-                          // If no match yet and we have an effective GEO, try to get #1 brand from that GEO
-                          if (!displayMatch && effectiveGeoId) {
-                            const allBrands = getAllBrandsForGeo(effectiveGeoId);
-                            const topBrand = allBrands.find(b => b.position === 1);
-                            if (topBrand) {
-                              displayMatch = topBrand;
+                          // Get the final match to display
+                          let displayMatch: { position: number | null; brandName: string; brandId: string } | null = manualMatch;
+                          
+                          // If no manual brand selection, check if GEO was manually changed
+                          if (!displayMatch) {
+                            if (manualGeoId) {
+                              // Manual GEO selected - show #1 brand from that GEO
+                              const allBrands = getAllBrandsForGeo(manualGeoId);
+                              const topBrand = allBrands.find(b => b.position === 1);
+                              if (topBrand) {
+                                displayMatch = topBrand;
+                              }
+                            } else {
+                              // No manual GEO - use #1 from detected GEO
+                              if (result.detectedGeo) {
+                                const allBrands = getAllBrandsForGeo(result.detectedGeo.id);
+                                const topBrand = allBrands.find(b => b.position === 1);
+                                if (topBrand) {
+                                  displayMatch = topBrand;
+                                }
+                              }
                             }
                           }
 

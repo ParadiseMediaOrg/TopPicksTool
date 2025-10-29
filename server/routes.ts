@@ -263,6 +263,76 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Create Sub-ID from Task Reconciliation
+  app.post("/api/create-subid-from-task", async (req, res) => {
+    try {
+      const { taskId, websiteId } = req.body;
+      
+      if (!taskId || !websiteId) {
+        return res.status(400).json({ error: "taskId and websiteId are required" });
+      }
+
+      // Get the website to retrieve format pattern
+      const website = await storage.getWebsite(websiteId);
+      if (!website) {
+        return res.status(404).json({ error: "Website not found" });
+      }
+
+      const apiKey = process.env.CLICKUP_API_KEY;
+      let liveUrl: string | undefined = undefined;
+
+      // Fetch ClickUp task details to get URL
+      if (apiKey) {
+        try {
+          const response = await fetch(`https://api.clickup.com/api/v2/task/${taskId.trim()}`, {
+            headers: {
+              'Authorization': apiKey,
+              'Content-Type': 'application/json',
+            },
+          });
+
+          if (response.ok) {
+            const taskData = await response.json();
+            
+            // Look for "Live URL" custom field
+            if (taskData.custom_fields && Array.isArray(taskData.custom_fields)) {
+              const liveUrlField = taskData.custom_fields.find(
+                (field: any) => {
+                  const fieldName = (field.name || '').toLowerCase();
+                  return (fieldName === '*live url' || fieldName === 'live url' || fieldName === 'liveurl' || fieldName === 'url') && field.value;
+                }
+              );
+              
+              if (liveUrlField && liveUrlField.value) {
+                liveUrl = liveUrlField.value;
+              }
+            }
+          }
+        } catch (error) {
+          console.warn(`Error fetching ClickUp task ${taskId}:`, error);
+        }
+      }
+
+      // Generate Sub-ID value using website's format pattern
+      const subIdValue = generateSubId(website.formatPattern);
+
+      // Create the Sub-ID with ClickUp task linked
+      const newSubId = await storage.createSubId({
+        websiteId: websiteId,
+        value: subIdValue,
+        url: liveUrl || null,
+        clickupTaskId: taskId.trim(),
+        timestamp: Date.now(),
+        isImmutable: true,
+      });
+
+      res.json(newSubId);
+    } catch (error: any) {
+      console.error("Error creating Sub-ID from task:", error);
+      res.status(500).json({ error: error.message || "Failed to create Sub-ID" });
+    }
+  });
+
   app.delete("/api/subids/:id", async (req, res) => {
     try {
       await storage.deleteSubId(req.params.id);

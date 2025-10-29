@@ -9,7 +9,7 @@ import { PageNav } from "@/components/page-nav";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { useQuery } from "@tanstack/react-query";
-import { Loader2, Search, CheckCircle2, XCircle, AlertCircle, Globe, GripVertical } from "lucide-react";
+import { Loader2, Search, CheckCircle2, XCircle, AlertCircle, Globe, GripVertical, Plus } from "lucide-react";
 import {
   DndContext,
   closestCenter,
@@ -100,6 +100,7 @@ export default function TaskReconciliation() {
   const [results, setResults] = useState<ReconciliationResult[]>([]);
   const [selectedGeoForBrands, setSelectedGeoForBrands] = useState<{ id: string; code: string; name: string } | null>(null);
   const [localBrands, setLocalBrands] = useState<RankingWithBrand[]>([]);
+  const [creatingSubIds, setCreatingSubIds] = useState<Set<string>>(new Set());
 
   // Fetch rankings for the selected GEO
   const { data: rankings = [], isLoading: rankingsLoading } = useQuery<GeoBrandRanking[]>({
@@ -218,6 +219,49 @@ export default function TaskReconciliation() {
     }
   };
 
+  const handleCreateSubId = async (taskId: string, websiteId: string) => {
+    setCreatingSubIds(prev => new Set(prev).add(taskId));
+
+    try {
+      const res = await apiRequest("POST", "/api/create-subid-from-task", {
+        taskId,
+        websiteId,
+      });
+
+      const newSubId = await res.json();
+
+      // Update the results to reflect the new Sub-ID
+      setResults(prevResults =>
+        prevResults.map(result =>
+          result.taskId === taskId
+            ? {
+                ...result,
+                subIdExists: true,
+                subIdValue: newSubId.value,
+              }
+            : result
+        )
+      );
+
+      toast({
+        title: "Sub-ID Created",
+        description: `Created Sub-ID: ${newSubId.value}`,
+      });
+    } catch (error: any) {
+      toast({
+        title: "Creation Failed",
+        description: error.message || "Failed to create Sub-ID.",
+        variant: "destructive",
+      });
+    } finally {
+      setCreatingSubIds(prev => {
+        const next = new Set(prev);
+        next.delete(taskId);
+        return next;
+      });
+    }
+  };
+
   return (
     <div className="flex flex-col h-screen">
       <PageNav />
@@ -287,6 +331,7 @@ export default function TaskReconciliation() {
                     <TableHead>Brand Match</TableHead>
                     <TableHead>Sub-ID Status</TableHead>
                     <TableHead>Sub-ID Value</TableHead>
+                    <TableHead>Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -358,6 +403,28 @@ export default function TaskReconciliation() {
                       </TableCell>
                       <TableCell className="font-mono text-sm" data-testid={`cell-subid-value-${index}`}>
                         {result.subIdValue || <span className="text-muted-foreground">-</span>}
+                      </TableCell>
+                      <TableCell data-testid={`cell-actions-${index}`}>
+                        {!result.subIdExists && result.websiteId && !result.error && (
+                          <Button
+                            size="sm"
+                            onClick={() => handleCreateSubId(result.taskId, result.websiteId!)}
+                            disabled={creatingSubIds.has(result.taskId)}
+                            data-testid={`button-create-subid-${index}`}
+                          >
+                            {creatingSubIds.has(result.taskId) ? (
+                              <>
+                                <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                                Creating...
+                              </>
+                            ) : (
+                              <>
+                                <Plus className="h-3 w-3 mr-1" />
+                                Create Sub-ID
+                              </>
+                            )}
+                          </Button>
+                        )}
                       </TableCell>
                     </TableRow>
                   ))}

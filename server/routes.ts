@@ -1942,6 +1942,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
                             };
                             console.log(`[ClickUp Task ${taskId}] Matched to database GEO: ${matchedGeo.code}`);
                           } else {
+                            // GEO detected from ClickUp but not found in database
+                            result.unmatchedGeoValue = geoValue;
                             console.log(`[ClickUp Task ${taskId}] Could not match normalized GEO "${normalizedCode}" to database. Available codes:`, Array.from(geosByCode.keys()));
                           }
                         }

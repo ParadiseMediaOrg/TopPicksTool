@@ -38,6 +38,7 @@ interface ReconciliationResult {
     name: string;
     id: string;
   } | null;
+  unmatchedGeoValue?: string;
   brandMatch: {
     position: number;
     brandName: string;
@@ -350,6 +351,11 @@ export default function TaskReconciliation() {
                             <Globe className="h-3 w-3" />
                             {result.detectedGeo.code}
                           </Badge>
+                        ) : result.unmatchedGeoValue ? (
+                          <div className="flex items-center gap-2 text-xs text-amber-600 dark:text-amber-500">
+                            <AlertTriangle className="h-3 w-3 flex-shrink-0" />
+                            <span>Add "{result.unmatchedGeoValue}" to Brand Rankings</span>
+                          </div>
                         ) : (
                           <span className="text-muted-foreground text-sm">Not set</span>
                         )}
@@ -456,6 +462,14 @@ export default function TaskReconciliation() {
                   {results.filter(r => !r.subIdExists && !r.error).length} without Sub-ID
                 </span>
               </div>
+              {results.some(r => r.unmatchedGeoValue) && (
+                <div className="flex items-center gap-2">
+                  <AlertTriangle className="h-4 w-4 text-amber-600" />
+                  <span className="text-amber-600 dark:text-amber-500">
+                    {results.filter(r => r.unmatchedGeoValue).length} need GEO setup
+                  </span>
+                </div>
+              )}
               {results.some(r => r.websiteName && !r.websiteId && !r.error) && (
                 <div className="flex items-center gap-2">
                   <AlertTriangle className="h-4 w-4 text-amber-600" />

@@ -153,11 +153,11 @@ async function importFromExcel() {
       // Create default list
       const [inserted] = await db.insert(brandLists).values({
         geoId: geoRecord.id,
-        name: "Default",
+        name: "Casino",
         sortOrder: 0,
       }).returning();
       defaultList = inserted;
-      console.log(`  ✓ Created default list for ${geoCol.code}`);
+      console.log(`  ✓ Created Casino list for ${geoCol.code}`);
     } else {
       // Use first existing list
       defaultList = existingLists[0];

@@ -262,7 +262,7 @@ export default function BrandRankings() {
       // Create default brand list for the new GEO
       try {
         const listRes = await apiRequest("POST", `/api/geos/${newGeo.id}/brand-lists`, {
-          name: "Default",
+          name: "Casino",
           sortOrder: 0,
         });
         const newList = await listRes.json();
@@ -276,7 +276,7 @@ export default function BrandRankings() {
         
         toast({
           title: "GEO Added",
-          description: `${newGeo.name} has been created with a default brand list.`,
+          description: `${newGeo.name} has been created with a Casino brand list.`,
         });
       } catch (error) {
         console.error("Failed to create default brand list:", error);
@@ -1409,7 +1409,7 @@ export default function BrandRankings() {
             <DialogDescription>
               {editingGeo
                 ? "Update the geographic region details."
-                : "Add a new geographic region for brand rankings. A default brand list will be created automatically."}
+                : "Add a new geographic region for brand rankings. A Casino brand list will be created automatically."}
             </DialogDescription>
           </DialogHeader>
           <form

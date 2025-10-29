@@ -1238,8 +1238,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
           .replace(/&#39;/g, "'");
       };
 
-      // Helper function to replace tracking parameter in URL
-      const replaceTrackingParam = (url: string, oldTaskId: string, newValue: string): string => {
+      // Helper function to add or replace Sub-ID in tracking URL
+      const addSubIdToUrl = (url: string, taskId: string, subIdValue: string): string => {
         url = decodeHtmlEntities(url);
         
         const trackingParams = [
@@ -1265,18 +1265,42 @@ export async function registerRoutes(app: Express): Promise<Server> {
         try {
           const urlObj = new URL(url);
           
+          // First, check if any tracking parameter already has the task ID - replace it
+          let replaced = false;
           for (const param of trackingParams) {
             const value = urlObj.searchParams.get(param);
-            if (value === oldTaskId) {
-              urlObj.searchParams.set(param, newValue);
-              return urlObj.toString();
+            if (value === taskId) {
+              urlObj.searchParams.set(param, subIdValue);
+              replaced = true;
+              break;
             }
           }
+          
+          // If we didn't find the task ID to replace, add Sub-ID as a new parameter
+          if (!replaced) {
+            // Try common tracking params first, use the first one that doesn't exist
+            const preferredParams = ['payload', 'subid', 'clickid'];
+            let paramUsed = false;
+            
+            for (const param of preferredParams) {
+              if (!urlObj.searchParams.has(param)) {
+                urlObj.searchParams.set(param, subIdValue);
+                paramUsed = true;
+                break;
+              }
+            }
+            
+            // If all preferred params exist, just append as 'subid'
+            if (!paramUsed) {
+              urlObj.searchParams.set('subid', subIdValue);
+            }
+          }
+          
+          return urlObj.toString();
         } catch (e) {
           // If URL parsing fails, return original
+          return url;
         }
-        
-        return url;
       };
 
       // Build the brand list comment
@@ -1297,9 +1321,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         if (brand && ranking.affiliateLink) {
           let affiliateLink = ranking.affiliateLink;
           
-          // If we have a Sub-ID, replace the task ID in the affiliate link
+          // If we have a Sub-ID, add it to the affiliate link
           if (subId) {
-            affiliateLink = replaceTrackingParam(affiliateLink, taskId, subId.value);
+            affiliateLink = addSubIdToUrl(affiliateLink, taskId, subId.value);
           }
           
           commentText += `${ranking.position}. **${brand.name}**\n`;

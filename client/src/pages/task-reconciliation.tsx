@@ -565,8 +565,14 @@ export default function TaskReconciliation() {
                                 }}
                                 data-testid={`select-brand-geo-${index}`}
                               >
-                                <SelectTrigger className="h-8 text-xs w-[140px]">
-                                  <SelectValue placeholder="Select GEO" />
+                                <SelectTrigger className="h-7 text-xs w-[70px] px-2">
+                                  <SelectValue placeholder="GEO">
+                                    {(() => {
+                                      const selectedGeoId = manualGeoId || result.detectedGeo?.id;
+                                      const selectedGeo = allGeos.find(g => g.id === selectedGeoId);
+                                      return selectedGeo?.code || "GEO";
+                                    })()}
+                                  </SelectValue>
                                 </SelectTrigger>
                                 <SelectContent>
                                   {allGeos.map((geo) => (

@@ -1,7 +1,7 @@
 import XLSX from "xlsx";
 import { db } from "../server/db";
-import { geos, brands, geoBrandRankings } from "../shared/schema";
-import { eq, and } from "drizzle-orm";
+import { geos, brands, brandLists, geoBrandRankings } from "../shared/schema";
+import { eq } from "drizzle-orm";
 
 const excelFilePath = "attached_assets/November Top Picks Order by GEO_1761691726701.xlsx";
 
@@ -42,11 +42,15 @@ async function importFromExcel() {
   
   for (const geoCol of geoColumns) {
     const rankings: Array<{ brand: string; rpc: number; position: number }> = [];
+    const seenPositions = new Set<number>();
     
-    for (let rowIdx = 1; rowIdx < data.length; rowIdx++) { // Process all rows
+    for (let rowIdx = 1; rowIdx < data.length; rowIdx++) {
       const row = data[rowIdx];
       const position = row[0];
       if (!position || typeof position !== 'number') continue;
+      
+      // Only process positions 1-10 for featured brands
+      if (position < 1 || position > 10) continue;
       
       const brandName = row[geoCol.brandCol];
       const rpcValue = row[geoCol.rpcCol];
@@ -54,6 +58,9 @@ async function importFromExcel() {
       const brandStr = typeof brandName === 'string' ? brandName.trim() : String(brandName || '').trim();
       
       if (brandStr && brandStr !== 'new' && brandStr !== '' && brandStr !== 'undefined' && brandStr !== 'null') {
+        // Skip if we've already seen this position for this GEO (take first occurrence only)
+        if (seenPositions.has(position)) continue;
+        
         uniqueBrands.add(brandStr);
         
         let rpc = 0;
@@ -65,6 +72,7 @@ async function importFromExcel() {
         
         if (!isNaN(rpc) && rpc > 0) {
           rankings.push({ brand: brandStr, rpc, position });
+          seenPositions.add(position);
         }
       }
     }
@@ -106,60 +114,102 @@ async function importFromExcel() {
     }
   }
   
-  // Insert missing brands
+  // Insert missing brands in batches
   console.log("\n🎰 Processing brands...");
-  let newBrandCount = 0;
-  for (const brandName of Array.from(uniqueBrands).sort()) {
-    if (!brandRecords[brandName]) {
-      const [inserted] = await db.insert(brands).values({
-        name: brandName,
-        status: "active",
-      }).returning();
-      brandRecords[brandName] = inserted;
-      newBrandCount++;
+  const missingBrands = Array.from(uniqueBrands).filter(name => !brandRecords[name]);
+  
+  if (missingBrands.length > 0) {
+    const batchSize = 50;
+    for (let i = 0; i < missingBrands.length; i += batchSize) {
+      const batch = missingBrands.slice(i, i + batchSize);
+      const inserted = await db.insert(brands).values(
+        batch.map(name => ({ name, status: "active" as const }))
+      ).returning();
+      
+      for (const brand of inserted) {
+        brandRecords[brand.name] = brand;
+      }
     }
+    console.log(`  ✓ Created ${missingBrands.length} new brands`);
   }
-  console.log(`  ✓ Created ${newBrandCount} new brands`);
   console.log(`  ✓ Total brands: ${Object.keys(brandRecords).length}`);
   
-  // Insert rankings
+  // Create default brand list for each GEO
+  console.log("\n📋 Creating default brand lists...");
+  const brandListRecords: Record<string, any> = {};
+  
+  for (const geoCol of geoColumns) {
+    const geoRecord = geoRecords[geoCol.code];
+    if (!geoRecord) continue;
+    
+    // Check if default list exists
+    const existingLists = await db
+      .select()
+      .from(brandLists)
+      .where(eq(brandLists.geoId, geoRecord.id));
+    
+    let defaultList;
+    if (existingLists.length === 0) {
+      // Create default list
+      const [inserted] = await db.insert(brandLists).values({
+        geoId: geoRecord.id,
+        name: "Default",
+        sortOrder: 0,
+      }).returning();
+      defaultList = inserted;
+      console.log(`  ✓ Created default list for ${geoCol.code}`);
+    } else {
+      // Use first existing list
+      defaultList = existingLists[0];
+      console.log(`  ✓ Using existing list for ${geoCol.code}: ${defaultList.name}`);
+    }
+    
+    brandListRecords[geoCol.code] = defaultList;
+  }
+  
+  // Insert rankings in batches
   console.log("\n🏆 Inserting rankings...");
   let insertedCount = 0;
-  let skippedCount = 0;
   
   for (const [geoCode, rankings] of Object.entries(geoRankingsData)) {
     const geoRecord = geoRecords[geoCode];
-    if (!geoRecord) continue;
+    const listRecord = brandListRecords[geoCode];
+    if (!geoRecord || !listRecord) continue;
     
-    // Clear existing rankings for this GEO first
-    await db.delete(geoBrandRankings).where(eq(geoBrandRankings.geoId, geoRecord.id));
+    // Clear existing rankings for this list first
+    await db.delete(geoBrandRankings).where(eq(geoBrandRankings.listId, listRecord.id));
     
     console.log(`\n  ${geoCode}: Inserting ${rankings.length} rankings...`);
     
-    for (const ranking of rankings) {
-      const brand = brandRecords[ranking.brand];
-      if (!brand) continue;
-      
-      const rpcInCents = Math.round(ranking.rpc * 100);
-      
-      try {
-        await db.insert(geoBrandRankings).values({
+    // Prepare all ranking values
+    const rankingValues = rankings
+      .map(ranking => {
+        const brand = brandRecords[ranking.brand];
+        if (!brand) return null;
+        
+        const rpcInCents = Math.round(ranking.rpc * 100);
+        
+        return {
           geoId: geoRecord.id,
+          listId: listRecord.id,
           brandId: brand.id,
           position: ranking.position,
           rpcInCents,
           timestamp: Date.now(),
-        });
-        insertedCount++;
-      } catch (error: any) {
-        skippedCount++;
-      }
+        };
+      })
+      .filter(v => v !== null);
+    
+    // Insert in batches
+    if (rankingValues.length > 0) {
+      await db.insert(geoBrandRankings).values(rankingValues);
+      insertedCount += rankingValues.length;
+      console.log(`    ✓ Inserted ${rankingValues.length} rankings`);
     }
   }
   
   console.log(`\n✅ Import complete!`);
-  console.log(`   Inserted: ${insertedCount} rankings`);
-  console.log(`   Skipped: ${skippedCount} rankings`);
+  console.log(`   Total inserted: ${insertedCount} rankings`);
 }
 
 importFromExcel()

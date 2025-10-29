@@ -187,13 +187,23 @@ Preferred communication style: Simple, everyday language.
 
 **Auto-Detection**: Each task's "*Target GEO" and "*Publisher" custom fields are automatically extracted from ClickUp, allowing mixed-GEO batches in a single analysis
 
+**ClickUp Custom Field Handling**:
+- Supports dropdown/select fields (type `drop_down` or `labels`) where values are numeric IDs
+- Maps numeric IDs to option names via field's `type_config.options`
+- Falls back to text field handling for other field types
+- Handles both string values and complex object structures
+
 **Workflow**:
 1. User pastes ClickUp task IDs (one per line or comma-separated)
 2. System analyzes each task:
    - Fetches task details and custom fields from ClickUp API
-   - Extracts "*Target GEO" custom field (handles both string and object formats)
-   - Maps GEO code (e.g., "USA", "UK") to database GEO via case-insensitive lookup
-   - Extracts "*Publisher" custom field to identify the website
+   - Extracts "*Target GEO" custom field:
+     - For dropdown fields: maps numeric value to option name from field configuration
+     - For text fields: extracts string value directly
+     - Maps GEO code (e.g., "USA", "UK") to database GEO via case-insensitive lookup
+   - Extracts "*Publisher" custom field to identify the website:
+     - For dropdown fields: maps numeric value to option name from field configuration
+     - For text fields: extracts string value directly
    - Matches "*Publisher" value against website names using strict matching:
      - First attempts exact match (after normalization)
      - Then filters common filler words (publisher, site, casino, poker, betting, etc.)
@@ -206,11 +216,15 @@ Preferred communication style: Simple, everyday language.
 **Results Display**:
 - Task ID
 - Detected Target GEO (shows code badge or "Not set" if missing)
-- Website association (detected from "*Publisher" custom field or task name)
+- Website association (detected from "*Publisher" custom field or task name, cleaned to remove *pm- prefix)
 - Brand match showing position and name (if found in top 10 for that task's GEO)
 - Sub-ID status (exists/not found)
 - Sub-ID value (if already created)
 - Error messages for ClickUp API failures
+
+**Website Name Display**:
+- Automatically removes "*pm-" prefix from website names in results table
+- Shows clean domain name only for better readability
 
 **Data Sources**:
 - ClickUp API for task metadata and custom fields

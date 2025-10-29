@@ -32,6 +32,15 @@ export default function TaskReconciliation() {
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [results, setResults] = useState<ReconciliationResult[]>([]);
 
+  // Helper function to clean website name - removes *pm- prefix
+  const cleanWebsiteName = (name: string | null): string | null => {
+    if (!name) return null;
+    
+    // Remove *pm- prefix (case-insensitive)
+    const cleaned = name.replace(/^\*pm-/i, '');
+    return cleaned;
+  };
+
   const handleAnalyze = async () => {
     if (!taskIds.trim()) {
       toast({
@@ -177,7 +186,7 @@ export default function TaskReconciliation() {
                             Error
                           </Badge>
                         ) : result.websiteName ? (
-                          <span>{result.websiteName}</span>
+                          <span>{cleanWebsiteName(result.websiteName)}</span>
                         ) : (
                           <span className="text-muted-foreground">Unknown</span>
                         )}

@@ -4,3 +4,23 @@ dist
 server/public
 vite.config.ts.*
 *.tar.gz
+
+# Development files
+attached_assets/
+scripts/
+
+# Logs
+*.log
+logs/
+/tmp/
+
+# Environment variables (keep .env.example if you have one)
+.env
+.env.local
+
+# Editor directories and files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~

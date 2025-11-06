@@ -84,7 +84,7 @@ export const insertBrandListSchema = createInsertSchema(brandLists).omit({
 export const insertGeoBrandRankingSchema = createInsertSchema(geoBrandRankings).omit({
   id: true,
 }).extend({
-  position: z.number().int().min(1).max(10).nullable().optional(),
+  position: z.number().int().min(1).nullable().optional(),
 });
 
 export type InsertWebsite = z.infer<typeof insertWebsiteSchema>;

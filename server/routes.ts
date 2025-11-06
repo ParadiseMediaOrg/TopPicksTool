@@ -739,9 +739,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
               );
 
               if (postResponse.ok) {
+                const postResult = await postResponse.json();
                 console.log(`   ✅ Posted TOP PICKS LINEUP table to task ${subId.clickupTaskId}`);
-                // Mark comment as posted
-                await storage.markCommentPosted(subId.id);
+                // Mark comment as posted and save comment ID
+                await storage.markCommentPosted(subId.id, postResult.id);
                 posted.push({ subId: subId.value, taskId: subId.clickupTaskId });
               } else {
                 const errorData = await postResponse.text();
@@ -819,8 +820,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const result = await response.json();
       console.log(`   ✅ TOP PICKS LINEUP table posted successfully`);
 
-      // Mark comment as posted
-      await storage.markCommentPosted(req.params.id);
+      // Mark comment as posted and save comment ID
+      await storage.markCommentPosted(req.params.id, result.id);
 
       res.json({
         success: true,
@@ -829,6 +830,58 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error: any) {
       console.error("Error posting ClickUp comment:", error);
       res.status(500).json({ error: error.message || "Failed to post comment to ClickUp" });
+    }
+  });
+
+  app.delete("/api/subids/:id/clickup/comment", async (req, res) => {
+    try {
+      const apiKey = process.env.CLICKUP_API_KEY;
+      
+      if (!apiKey) {
+        return res.status(500).json({ error: "ClickUp API key not configured" });
+      }
+
+      const subId = await storage.getSubIdById(req.params.id);
+      
+      if (!subId) {
+        return res.status(404).json({ error: "Sub-ID not found" });
+      }
+
+      if (!subId.clickupCommentId) {
+        return res.status(400).json({ error: "No comment ID found for this Sub-ID" });
+      }
+
+      console.log(`\n🗑️ Deleting ClickUp comment ${subId.clickupCommentId} for Sub-ID ${subId.value}...`);
+
+      const response = await fetch(
+        `https://api.clickup.com/api/v2/comment/${subId.clickupCommentId}`,
+        {
+          method: 'DELETE',
+          headers: {
+            'Authorization': apiKey,
+            'Content-Type': 'application/json',
+          },
+        }
+      );
+
+      if (!response.ok) {
+        const errorData = await response.text();
+        console.error(`   ❌ ClickUp API error: ${response.statusText}`, errorData);
+        throw new Error(`ClickUp API error: ${response.statusText}`);
+      }
+
+      console.log(`   ✅ Comment deleted successfully`);
+
+      // Clear comment posted flag and comment ID
+      await storage.clearCommentPosted(req.params.id);
+
+      res.json({
+        success: true,
+        message: "Comment deleted successfully",
+      });
+    } catch (error: any) {
+      console.error("Error deleting ClickUp comment:", error);
+      res.status(500).json({ error: error.message || "Failed to delete comment from ClickUp" });
     }
   });
 

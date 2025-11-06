@@ -2242,6 +2242,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
             brandMatch: null,
             subIdExists: false,
             subIdValue: null,
+            subIdId: null,
+            commentPosted: false,
+            commentId: null,
           };
 
           // Check if Sub-ID already exists for this task
@@ -2250,6 +2253,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
             result.subIdExists = true;
             result.subIdValue = existingSubId.value;
             result.websiteId = existingSubId.websiteId;
+            result.subIdId = existingSubId.id;
+            result.commentPosted = existingSubId.commentPosted || false;
+            result.commentId = existingSubId.clickupCommentId || null;
           }
 
           // Fetch ClickUp task to get custom fields and task data

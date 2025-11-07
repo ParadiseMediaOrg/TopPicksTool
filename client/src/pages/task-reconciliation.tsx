@@ -413,9 +413,9 @@ export default function TaskReconciliation() {
       return;
     }
 
-    // Filter rankings to only show those from the selected brand list
+    // Filter rankings to only show featured brands (position !== null) from the selected brand list
     const rankingsWithBrands: RankingWithBrand[] = rankings
-      .filter((ranking) => ranking.listId === selectedGeoForBrands.listId)
+      .filter((ranking) => ranking.listId === selectedGeoForBrands.listId && ranking.position !== null)
       .map((ranking) => ({
         ...ranking,
         brand: brands.find((b) => b.id === ranking.brandId),

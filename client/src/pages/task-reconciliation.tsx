@@ -151,6 +151,7 @@ export default function TaskReconciliation() {
     const saved = localStorage.getItem('topPicksManualBrandListSelections');
     return saved ? JSON.parse(saved) : {};
   });
+  const [manualBrandOrders, setManualBrandOrders] = useState<Record<string, string[]>>({});
 
   // Fetch all GEOs to get rankings for each
   const { data: allGeos = [] } = useQuery<Array<{ id: string; code: string; name: string }>>({
@@ -249,7 +250,18 @@ export default function TaskReconciliation() {
       setLocalBrands((items) => {
         const oldIndex = items.findIndex((item) => item.id === active.id);
         const newIndex = items.findIndex((item) => item.id === over.id);
-        return arrayMove(items, oldIndex, newIndex);
+        const newOrder = arrayMove(items, oldIndex, newIndex);
+        
+        // Save the manually reordered brand IDs for this list
+        if (selectedGeoForBrands) {
+          const brandIds = newOrder.map(item => item.brandId);
+          setManualBrandOrders(prev => ({
+            ...prev,
+            [selectedGeoForBrands.listId]: brandIds,
+          }));
+        }
+        
+        return newOrder;
       });
     }
   };
@@ -536,8 +548,12 @@ export default function TaskReconciliation() {
     setPostingBrands(prev => new Set(prev).add(taskId));
 
     try {
+      // Check if there's a manually reordered brand list for this listId
+      const brandOrder = manualBrandOrders[listId];
+      
       const res = await apiRequest("POST", `/api/reconcile-tasks/${taskId}/post-brands`, {
         listId,
+        brandOrder, // Send the manually reordered brand IDs if available
       });
 
       await res.json();

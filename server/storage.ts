@@ -19,7 +19,7 @@ import {
   geoBrandRankings
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, desc, and, asc } from "drizzle-orm";
+import { eq, desc, and, asc, isNotNull } from "drizzle-orm";
 
 export interface IStorage {
   // Website methods
@@ -343,10 +343,16 @@ export class DbStorage implements IStorage {
   async bulkUpsertRankings(listId: string, rankings: InsertGeoBrandRanking[]): Promise<GeoBrandRanking[]> {
     // Wrap delete + insert in a transaction for atomicity
     return await db.transaction(async (tx) => {
-      // Delete existing rankings for this list
-      await tx.delete(geoBrandRankings).where(eq(geoBrandRankings.listId, listId));
+      // Only delete featured rankings (position != null) for this list
+      // This preserves "Other Brands" which have position = null
+      await tx.delete(geoBrandRankings).where(
+        and(
+          eq(geoBrandRankings.listId, listId),
+          isNotNull(geoBrandRankings.position)
+        )
+      );
       
-      // Insert new rankings
+      // Insert new featured rankings
       if (rankings.length === 0) return [];
       return await tx.insert(geoBrandRankings).values(rankings).returning();
     });

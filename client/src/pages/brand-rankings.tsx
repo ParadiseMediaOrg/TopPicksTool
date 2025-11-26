@@ -144,11 +144,16 @@ function SortableFeaturedBrand({
   ranking,
   onMoveToOther,
   onDelete,
+  onUpdateAffiliateLink,
 }: {
   ranking: RankingWithBrand;
   onMoveToOther: () => void;
   onDelete: () => void;
+  onUpdateAffiliateLink: (affiliateLink: string) => void;
 }) {
+  const [isEditingLink, setIsEditingLink] = useState(false);
+  const [linkValue, setLinkValue] = useState(ranking.affiliateLink || "");
+  
   const {
     attributes,
     listeners,
@@ -162,6 +167,11 @@ function SortableFeaturedBrand({
     transform: CSS.Transform.toString(transform),
     transition,
     opacity: isDragging ? 0.5 : 1,
+  };
+
+  const handleSaveLink = () => {
+    onUpdateAffiliateLink(linkValue);
+    setIsEditingLink(false);
   };
 
   return (
@@ -180,12 +190,69 @@ function SortableFeaturedBrand({
         </div>
       </TableCell>
       <TableCell data-testid={`cell-brand-${ranking.position}`}>{ranking.brand?.name || "Unknown Brand"}</TableCell>
-      <TableCell className="text-sm text-muted-foreground truncate max-w-xs" data-testid={`cell-affiliate-link-${ranking.position}`}>
-        {ranking.affiliateLink ? (
-          <a href={ranking.affiliateLink} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">
-            {ranking.affiliateLink}
-          </a>
-        ) : "-"}
+      <TableCell className="text-sm max-w-xs" data-testid={`cell-affiliate-link-${ranking.position}`}>
+        {isEditingLink ? (
+          <div className="flex gap-2 items-center">
+            <Input
+              type="url"
+              placeholder="https://example.com/affiliate-link"
+              value={linkValue}
+              onChange={(e) => setLinkValue(e.target.value)}
+              className="flex-1 h-8 text-xs"
+              data-testid={`input-featured-affiliate-link-${ranking.position}`}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') handleSaveLink();
+                if (e.key === 'Escape') {
+                  setLinkValue(ranking.affiliateLink || "");
+                  setIsEditingLink(false);
+                }
+              }}
+              autoFocus
+            />
+            <Button
+              size="icon"
+              variant="ghost"
+              className="h-7 w-7"
+              onClick={handleSaveLink}
+              data-testid={`button-save-featured-link-${ranking.position}`}
+            >
+              <Save className="h-3 w-3" />
+            </Button>
+            <Button
+              size="icon"
+              variant="ghost"
+              className="h-7 w-7"
+              onClick={() => {
+                setLinkValue(ranking.affiliateLink || "");
+                setIsEditingLink(false);
+              }}
+              data-testid={`button-cancel-featured-link-${ranking.position}`}
+            >
+              <X className="h-3 w-3" />
+            </Button>
+          </div>
+        ) : (
+          <div 
+            className="flex items-center gap-2 text-muted-foreground cursor-pointer hover:text-foreground"
+            onClick={() => setIsEditingLink(true)}
+            data-testid={`featured-link-display-${ranking.position}`}
+          >
+            {ranking.affiliateLink ? (
+              <a 
+                href={ranking.affiliateLink} 
+                target="_blank" 
+                rel="noopener noreferrer" 
+                className="text-primary hover:underline truncate"
+                onClick={(e) => e.stopPropagation()}
+              >
+                {ranking.affiliateLink}
+              </a>
+            ) : (
+              <span className="italic text-xs">Click to add affiliate link</span>
+            )}
+            <Edit2 className="h-3 w-3 flex-shrink-0" />
+          </div>
+        )}
       </TableCell>
       <TableCell data-testid={`cell-actions-${ranking.position}`}>
         <div className="flex gap-1">
@@ -1308,6 +1375,12 @@ export default function BrandRankings() {
                                             if (confirm(`Remove ${ranking.brand?.name || 'this brand'} from this list completely?`)) {
                                               deleteRankingMutation.mutate(ranking.id);
                                             }
+                                          }}
+                                          onUpdateAffiliateLink={(affiliateLink) => {
+                                            updateAffiliateLinkMutation.mutate({ 
+                                              rankingId: ranking.id, 
+                                              affiliateLink 
+                                            });
                                           }}
                                         />
                                       ))}

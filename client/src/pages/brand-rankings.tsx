@@ -145,14 +145,18 @@ function SortableFeaturedBrand({
   onMoveToOther,
   onDelete,
   onUpdateAffiliateLink,
+  onUpdateInfo,
 }: {
   ranking: RankingWithBrand;
   onMoveToOther: () => void;
   onDelete: () => void;
   onUpdateAffiliateLink: (affiliateLink: string) => void;
+  onUpdateInfo: (info: string) => void;
 }) {
   const [isEditingLink, setIsEditingLink] = useState(false);
   const [linkValue, setLinkValue] = useState(ranking.affiliateLink || "");
+  const [isEditingInfo, setIsEditingInfo] = useState(false);
+  const [infoValue, setInfoValue] = useState(ranking.info || "");
   
   const {
     attributes,
@@ -172,6 +176,11 @@ function SortableFeaturedBrand({
   const handleSaveLink = () => {
     onUpdateAffiliateLink(linkValue);
     setIsEditingLink(false);
+  };
+
+  const handleSaveInfo = () => {
+    onUpdateInfo(infoValue);
+    setIsEditingInfo(false);
   };
 
   return (
@@ -249,6 +258,62 @@ function SortableFeaturedBrand({
               </a>
             ) : (
               <span className="italic text-xs">Click to add affiliate link</span>
+            )}
+            <Edit2 className="h-3 w-3 flex-shrink-0" />
+          </div>
+        )}
+      </TableCell>
+      <TableCell className="text-sm max-w-[200px]" data-testid={`cell-info-${ranking.position}`}>
+        {isEditingInfo ? (
+          <div className="flex gap-2 items-center">
+            <Input
+              type="text"
+              placeholder="Add info/notes..."
+              value={infoValue}
+              onChange={(e) => setInfoValue(e.target.value)}
+              className="flex-1 h-8 text-xs"
+              data-testid={`input-featured-info-${ranking.position}`}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') handleSaveInfo();
+                if (e.key === 'Escape') {
+                  setInfoValue(ranking.info || "");
+                  setIsEditingInfo(false);
+                }
+              }}
+              autoFocus
+            />
+            <Button
+              size="icon"
+              variant="ghost"
+              className="h-7 w-7"
+              onClick={handleSaveInfo}
+              data-testid={`button-save-featured-info-${ranking.position}`}
+            >
+              <Save className="h-3 w-3" />
+            </Button>
+            <Button
+              size="icon"
+              variant="ghost"
+              className="h-7 w-7"
+              onClick={() => {
+                setInfoValue(ranking.info || "");
+                setIsEditingInfo(false);
+              }}
+              data-testid={`button-cancel-featured-info-${ranking.position}`}
+            >
+              <X className="h-3 w-3" />
+            </Button>
+          </div>
+        ) : (
+          <div 
+            className="flex items-center gap-2 text-muted-foreground cursor-pointer hover:text-foreground"
+            onClick={() => setIsEditingInfo(true)}
+            data-testid={`featured-info-display-${ranking.position}`}
+          >
+            {ranking.info ? (
+              <span className="truncate">{ranking.info}</span>
+            ) : (
+              <span className="italic text-xs">Click to add info</span>
             )}
             <Edit2 className="h-3 w-3 flex-shrink-0" />
           </div>
@@ -983,6 +1048,30 @@ export default function BrandRankings() {
     },
   });
 
+  // Update info mutation
+  const updateInfoMutation = useMutation({
+    mutationFn: async ({ rankingId, info }: { rankingId: string; info: string }) => {
+      const res = await apiRequest("PUT", `/api/rankings/${rankingId}`, { 
+        info: info || null,
+      });
+      return await res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/brand-lists", selectedListId, "rankings"] });
+      toast({
+        title: "Info Updated",
+        description: "Info has been saved.",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to update info",
+        variant: "destructive",
+      });
+    },
+  });
+
   const handleStartEdit = () => {
     const editMap = new Map<number, RankingWithBrand>();
     
@@ -1007,6 +1096,7 @@ export default function BrandRankings() {
           brandId: "",
           position: i,
           affiliateLink: null,
+          info: null,
           sortOrder: 0,
           timestamp: Date.now(),
         });
@@ -1345,6 +1435,7 @@ export default function BrandRankings() {
                                 <TableHead className="w-20">Position</TableHead>
                                 <TableHead>Brand</TableHead>
                                 <TableHead>Affiliate Link</TableHead>
+                                <TableHead>Info</TableHead>
                                 {!isEditMode && <TableHead className="w-20">Actions</TableHead>}
                               </TableRow>
                             </TableHeader>
@@ -1352,7 +1443,7 @@ export default function BrandRankings() {
                               {!isEditMode ? (
                                 featuredRankings.length === 0 ? (
                                   <TableRow>
-                                    <TableCell colSpan={4} className="text-center text-muted-foreground py-8">
+                                    <TableCell colSpan={5} className="text-center text-muted-foreground py-8">
                                       No rankings yet. Click "Edit Rankings" to add brands.
                                     </TableCell>
                                   </TableRow>
@@ -1380,6 +1471,12 @@ export default function BrandRankings() {
                                             updateAffiliateLinkMutation.mutate({ 
                                               rankingId: ranking.id, 
                                               affiliateLink 
+                                            });
+                                          }}
+                                          onUpdateInfo={(info) => {
+                                            updateInfoMutation.mutate({ 
+                                              rankingId: ranking.id, 
+                                              info 
                                             });
                                           }}
                                         />
@@ -1447,6 +1544,17 @@ export default function BrandRankings() {
                                             updateEditingRanking(position, "affiliateLink", e.target.value)
                                           }
                                           data-testid={`input-edit-affiliate-link-${position}`}
+                                        />
+                                      </TableCell>
+                                      <TableCell data-testid={`cell-edit-info-${position}`}>
+                                        <Input
+                                          type="text"
+                                          placeholder="Add info/notes..."
+                                          value={ranking?.info || ""}
+                                          onChange={(e) =>
+                                            updateEditingRanking(position, "info", e.target.value)
+                                          }
+                                          data-testid={`input-edit-info-${position}`}
                                         />
                                       </TableCell>
                                     </TableRow>
